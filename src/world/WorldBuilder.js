@@ -5,8 +5,6 @@ import { createCloudLayer } from './CloudPlane.js';
 import { createForest } from './ForestPlacer.js';
 import { Octree } from '../spatial/Octree.js';
 import { FrustumCuller } from '../spatial/FrustumCuller.js';
-import { generateGrassCanvas } from '../utils/generateGrassTexture.js';
-import { GRASS_TEXTURE_REPEAT } from '../constants.js';
 
 /**
  * Orchestrates creation of all world elements.
@@ -20,12 +18,13 @@ export function buildWorld(scene) {
     if (obj.isDirectionalLight) sun = obj;
   });
 
-  // --- Grass texture ---
-  const grassCanvas = generateGrassCanvas(256);
-  const grassTexture = new THREE.CanvasTexture(grassCanvas);
+  // --- Grass texture (from Poly Haven, CC0) ---
+  const textureLoader = new THREE.TextureLoader();
+  const grassTexture = textureLoader.load(
+    'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_grass_rock/aerial_grass_rock_diff_1k.jpg'
+  );
   grassTexture.wrapS = THREE.RepeatWrapping;
   grassTexture.wrapT = THREE.RepeatWrapping;
-  grassTexture.repeat.set(GRASS_TEXTURE_REPEAT, GRASS_TEXTURE_REPEAT);
   grassTexture.colorSpace = THREE.SRGBColorSpace;
 
   // --- Terrain ---
