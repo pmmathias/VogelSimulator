@@ -14,9 +14,9 @@ export function generateTreeCanvas(width = 128, height = 256) {
 
   const cx = width / 2;
 
-  // Trunk
+  // Trunk (extends up to overlap with crown)
   const trunkWidth = width * 0.08;
-  const trunkHeight = height * 0.35;
+  const trunkHeight = height * 0.55;
   const trunkTop = height - trunkHeight;
   ctx.fillStyle = '#5a3a1a';
   ctx.fillRect(cx - trunkWidth / 2, trunkTop, trunkWidth, trunkHeight);

@@ -109,9 +109,9 @@ export class ArmAnalyzer {
     }
 
     // --- Roll (lateral tilt) ---
-    // Difference in arm elevation: left higher than right = roll left
-    const elevationDiff = this.leftArmElevation - this.rightArmElevation;
-    const targetRoll = clamp(elevationDiff * 4, -1, 1);
+    // Difference in arm elevation, negated because webcam mirrors the image
+    const elevationDiff = this.rightArmElevation - this.leftArmElevation;
+    const targetRoll = clamp(elevationDiff * 2.5, -1, 1);
     // Smooth
     this.roll += (targetRoll - this.roll) * 0.3;
 

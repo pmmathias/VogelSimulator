@@ -52,5 +52,15 @@ export class CameraRig {
 
     this.camera.position.copy(this._currentPos);
     this.camera.lookAt(this._currentLookAt);
+
+    // Apply roll and pitch tilt to camera for immersive feel
+    const camQuat = this.camera.quaternion.clone();
+    const rollQuat = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 0, 1), s.roll * 0.4
+    );
+    const pitchQuat = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(1, 0, 0), s.pitch * 0.15
+    );
+    this.camera.quaternion.copy(camQuat).multiply(rollQuat).multiply(pitchQuat);
   }
 }
