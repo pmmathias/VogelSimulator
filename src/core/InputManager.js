@@ -58,16 +58,17 @@ export class InputManager {
       this._poseInput.flapStrength > 0 ||
       Math.abs(this._poseInput.roll) > 0.05 ||
       Math.abs(this._poseInput.pitch) > 0.05 ||
-      this._poseInput.wingSpread < 0.7  // dive gesture activates pose mode
+      this._poseInput.diveActive
     )) {
       this.source = 'pose';
       this.lift = this._poseInput.flapStrength;
       this.roll = this._poseInput.roll;
       this.pitch = this._poseInput.pitch;
       this.wingSpread = this._poseInput.wingSpread ?? 1.0;
-      // Dive gesture: low wingSpread = pitch down (like pressing W)
-      if (this.wingSpread < 0.3) {
-        this.pitch = Math.min(this.pitch, -0.5);
+      // Dive only when sustained intent (not brief hand loss)
+      if (this._poseInput.diveActive) {
+        this.wingSpread = 0;
+        this.pitch = Math.min(this.pitch, -0.6);
       }
       return;
     }

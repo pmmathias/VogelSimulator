@@ -161,27 +161,50 @@ export class FlightPhysics {
     }
 
     // --- 8. Auto-trim pitch toward velocity (prevent AoA divergence) ---
-    // Only pitch, NOT yaw — yaw is player-controlled via banking
-    if (speed > 2) {
+    // DISABLED during dive — auto-trim was fighting the nosedive
+    if (speed > 2 && s.wingSpread > 0.5) {
       const velDir = s.velocity.clone().normalize();
       const targetPitch = Math.asin(clamp(velDir.y, -0.8, 0.8));
       s.pitch += (targetPitch - s.pitch) * 2.0 * dt;
     }
 
     // --- 9. Wing tuck → nosedive ---
-    // When wings are tucked (arms down), bird actively dives
     if (s.wingSpread < 0.5) {
       const tuckForce = (1 - s.wingSpread / 0.5); // 0→1 as wings tuck
 
-      // Aggressive pitch down — nearly vertical possible
-      s.pitch -= tuckForce * 8.0 * dt;
-      s.pitch = clamp(s.pitch, -Math.PI * 0.45, MAX_PITCH); // allow ~81° dive
+      // Aggressive pitch down — no resistance
+      s.pitch -= tuckForce * 15.0 * dt;
+      s.pitch = clamp(s.pitch, -Math.PI * 0.45, MAX_PITCH);
 
-      // Active dive acceleration (bird tucks and pushes down, not just falling)
-      s.velocity.y += GRAVITY * 0.5 * tuckForce * dt; // 50% extra gravity when fully tucked
+      // Strong dive acceleration
+      s.velocity.y += GRAVITY * 1.0 * tuckForce * dt;
+
+      // Redirect horizontal velocity downward (like pointing nose down)
+      // This makes the dive feel immediate instead of coasting
+      const hSpeed = Math.sqrt(s.velocity.x * s.velocity.x + s.velocity.z * s.velocity.z);
+      if (hSpeed > 5 && s.pitch < -0.2) {
+        const redirectRate = tuckForce * 3.0 * dt;
+        const redirectAmount = hSpeed * redirectRate;
+        s.velocity.y -= redirectAmount;
+        // Reduce horizontal speed proportionally
+        const hScale = Math.max(0, 1 - redirectRate);
+        s.velocity.x *= hScale;
+        s.velocity.z *= hScale;
+      }
+
+      // Push in dive direction for speed buildup
+      s.velocity.addScaledVector(s.forward, 8.0 * tuckForce * dt);
     }
 
-    // --- 10. Safety clamps ---
+    // --- 10. Underwater physics ---
+    if (s.altitude < 15) { // WATER_LEVEL = 15
+      // Strong water drag — slow down rapidly
+      s.velocity.multiplyScalar(1 - 2.0 * dt);
+      // Buoyancy — gentle push upward
+      s.velocity.y += 3.0 * dt;
+    }
+
+    // --- 11. Safety clamps ---
     s.velocity.y = Math.max(s.velocity.y, TERMINAL_VELOCITY);
     if (s.velocity.length() > MAX_SPEED) {
       s.velocity.normalize().multiplyScalar(MAX_SPEED);
@@ -198,6 +221,8 @@ export class FlightPhysics {
    * @param {number} terrainHeight - ground height at current position
    */
   enforceGround(terrainHeight) {
+    // Allow underwater diving: skip ground collision if terrain is below water
+    if (terrainHeight < 14) return; // over water — let bird dive through surface
     const minAlt = terrainHeight + 1.0;
     if (this.state.position.y < minAlt) {
       this.state.position.y = minAlt;
