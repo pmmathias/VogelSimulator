@@ -5,8 +5,8 @@ import * as THREE from 'three';
  */
 export class FlightState {
   constructor() {
-    this.position = new THREE.Vector3(0, 60, 0);
-    this.velocity = new THREE.Vector3(0, 0, -10); // initial forward speed
+    this.position = new THREE.Vector3(0, 150, 0);
+    this.velocity = new THREE.Vector3(0, 0, 10); // initial forward speed (matches yaw=π → forward +Z)
     this.forward = new THREE.Vector3(0, 0, -1);
     this.up = new THREE.Vector3(0, 1, 0);
     this.right = new THREE.Vector3(1, 0, 0);
@@ -19,6 +19,15 @@ export class FlightState {
     // Derived values
     this.speed = 10;
     this.altitude = 60;
+
+    // Aerodynamic state (computed each frame, exposed for HUD/debug)
+    this.angleOfAttack = 0;
+    this.liftCoefficient = 0;
+    this.isStalling = false;
+    this.flapPhase = 0;          // >0 = in downstroke (counts down)
+    this.flapCooldown = 0;       // counts down to 0
+    this.flapStrengthScale = 1;  // thrust multiplier from input strength
+    this.wingSpread = 1.0;   // 0 = wings tucked, 1 = fully spread
   }
 
   /** Update derived vectors from euler angles */
@@ -30,15 +39,25 @@ export class FlightState {
       -Math.cos(this.yaw) * Math.cos(this.pitch),
     ).normalize();
 
-    // Right vector (perpendicular, in XZ plane considering roll)
-    this.right.set(
+    // Base right vector (in XZ plane)
+    const baseRight = new THREE.Vector3(
       Math.cos(this.yaw),
       0,
       -Math.sin(this.yaw),
     ).normalize();
 
-    // Up vector
-    this.up.crossVectors(this.right, this.forward).normalize();
+    // Base up (before roll)
+    const baseUp = new THREE.Vector3().crossVectors(baseRight, this.forward).normalize();
+
+    // Apply roll: rotate baseUp around forward axis
+    // Negate sin(roll) because baseRight points left in this coordinate system
+    this.up.copy(baseUp)
+      .multiplyScalar(Math.cos(this.roll))
+      .addScaledVector(baseRight, -Math.sin(this.roll));
+    this.up.normalize();
+
+    // Update right to be consistent with rolled up
+    this.right.crossVectors(this.forward, this.up).normalize();
 
     this.speed = this.velocity.length();
     this.altitude = this.position.y;

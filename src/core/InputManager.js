@@ -1,69 +1,100 @@
 /**
  * Abstracts control input from keyboard and pose detection.
- * Pose input takes priority when available; keyboard serves as fallback.
- * Exposes normalized values: lift (0-1), roll (-1..1), pitch (-1..1).
+ * T toggles between pose and keyboard mode.
+ * Exposes normalized values: lift (0-1), roll (-1..1), pitch (-1..1), wingSpread (0..1).
  */
 export class InputManager {
   constructor() {
     this.lift = 0;
     this.roll = 0;
     this.pitch = 0;
+    this.wingSpread = 1.0;
 
     // Source tracking
     this.source = 'keyboard'; // 'keyboard' or 'pose'
+    this.forceKeyboard = false; // T toggles this
+    this.onModeChange = null;  // callback when mode changes
 
     this._keys = {};
-    this._flapCooldown = 0;
 
     // Pose input (set externally by ArmAnalyzer)
     this._poseInput = null;
 
-    window.addEventListener('keydown', (e) => { this._keys[e.code] = true; });
+    window.addEventListener('keydown', (e) => {
+      this._keys[e.code] = true;
+      if (e.code === 'KeyT') {
+        this.forceKeyboard = !this.forceKeyboard;
+        const mode = this.forceKeyboard ? 'KEYBOARD' : 'WEBCAM';
+        console.log(`Input mode: ${mode}`);
+        // Show brief overlay notification
+        let overlay = document.getElementById('mode-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'mode-overlay';
+          overlay.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:32px;font-family:sans-serif;text-shadow:2px 2px 4px rgba(0,0,0,0.8);pointer-events:none;z-index:200;transition:opacity 0.5s;';
+          document.body.appendChild(overlay);
+        }
+        overlay.textContent = `Mode: ${mode}`;
+        overlay.style.opacity = '1';
+        setTimeout(() => { overlay.style.opacity = '0'; }, 1500);
+        // Notify main.js to show/hide webcam overlay
+        if (this.onModeChange) this.onModeChange(this.forceKeyboard);
+      }
+    });
     window.addEventListener('keyup', (e) => { this._keys[e.code] = false; });
   }
 
   /**
    * Set pose input from ArmAnalyzer.
-   * @param {{ flapStrength: number, roll: number, pitch: number }|null} poseData
+   * @param {{ flapStrength: number, roll: number, pitch: number, wingSpread: number }|null} poseData
    */
   setPoseInput(poseData) {
     this._poseInput = poseData;
   }
 
   update(dt) {
-    // Check if pose input is available and active
-    if (this._poseInput && (
+    // Use pose input if available and not forced to keyboard
+    if (!this.forceKeyboard && this._poseInput && (
       this._poseInput.flapStrength > 0 ||
       Math.abs(this._poseInput.roll) > 0.05 ||
-      Math.abs(this._poseInput.pitch) > 0.05
+      Math.abs(this._poseInput.pitch) > 0.05 ||
+      this._poseInput.wingSpread < 0.7  // dive gesture activates pose mode
     )) {
       this.source = 'pose';
       this.lift = this._poseInput.flapStrength;
       this.roll = this._poseInput.roll;
       this.pitch = this._poseInput.pitch;
+      this.wingSpread = this._poseInput.wingSpread ?? 1.0;
+      // Dive gesture: low wingSpread = pitch down (like pressing W)
+      if (this.wingSpread < 0.3) {
+        this.pitch = Math.min(this.pitch, -0.5);
+      }
       return;
     }
 
-    // Keyboard fallback
+    // Keyboard mode — simulate bird gestures
     this.source = 'keyboard';
 
-    // Flap with Space
-    if (this._keys['Space'] && this._flapCooldown <= 0) {
-      this.lift = 1;
-      this._flapCooldown = 0.3;
-    } else {
-      this.lift = 0;
-    }
-    if (this._flapCooldown > 0) this._flapCooldown -= dt;
+    // Space = flap (FlightPhysics.flap() handles its own cooldown)
+    this.lift = this._keys['Space'] ? 1 : 0;
 
-    // Roll with A/D
+    // A/D = roll (banking turns)
     this.roll = 0;
-    if (this._keys['KeyA'] || this._keys['ArrowLeft']) this.roll = -1;
-    if (this._keys['KeyD'] || this._keys['ArrowRight']) this.roll = 1;
+    if (this._keys['KeyA'] || this._keys['ArrowLeft']) this.roll = 1;
+    if (this._keys['KeyD'] || this._keys['ArrowRight']) this.roll = -1;
 
-    // Pitch with W/S
-    this.pitch = 0;
-    if (this._keys['KeyW'] || this._keys['ArrowUp']) this.pitch = 1;
-    if (this._keys['KeyS'] || this._keys['ArrowDown']) this.pitch = -1;
+    // W = tuck wings + dive (arms down)
+    // S = spread wings + lean back (climbing glide)
+    // Nothing = spread wings, neutral pitch (gliding descent)
+    if (this._keys['KeyW'] || this._keys['ArrowUp']) {
+      this.wingSpread = 0;    // wings tucked → nosedive
+      this.pitch = -0.5;      // slight nose-down assist
+    } else if (this._keys['KeyS'] || this._keys['ArrowDown']) {
+      this.wingSpread = 1.0;  // wings fully spread
+      this.pitch = 0.6;       // lean back → climb
+    } else {
+      this.wingSpread = 1.0;  // wings spread
+      this.pitch = 0;         // neutral → gentle glide
+    }
   }
 }

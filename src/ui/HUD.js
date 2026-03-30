@@ -66,15 +66,27 @@ export class HUD {
    * @param {import('../flight/FlightState.js').FlightState} state
    * @param {boolean} isFlapping
    */
-  update(state, isFlapping = false) {
+  update(state, isFlapping = false, inputSource = 'keyboard') {
     const alt = Math.round(state.altitude);
     const spd = Math.round(state.speed * 3.6); // m/s to km/h
     const heading = Math.round(((state.yaw * 180 / Math.PI) % 360 + 360) % 360);
+    const aoa = Math.round(state.angleOfAttack * 180 / Math.PI);
+
+    const stallWarning = state.isStalling
+      ? '<span style="color:#ff4444;font-weight:bold">STALL</span><br>'
+      : '';
+
+    const modeLabel = inputSource === 'pose'
+      ? '<span style="color:#44ff44">WEBCAM</span>'
+      : '<span style="color:#ffaa44">KEYBOARD</span>';
 
     this.el.innerHTML = `
+      ${stallWarning}
+      ${modeLabel}<br>
       ALT: ${alt}m<br>
       SPD: ${spd} km/h<br>
-      HDG: ${heading}&deg;
+      HDG: ${heading}&deg;<br>
+      AoA: ${aoa}&deg;
     `;
 
     // Flap indicator flash

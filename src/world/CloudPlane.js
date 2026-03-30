@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { CLOUD_HEIGHT, CLOUD_COUNT, WORLD_HALF } from '../constants.js';
 import { randomRange } from '../utils/math.js';
 
+const CLOUD_SPREAD = WORLD_HALF * 3;
+
 /**
  * Generate a procedural cloud sprite texture.
  */
@@ -60,12 +62,12 @@ export function createCloudLayer() {
     });
 
     const sprite = new THREE.Sprite(material);
-    const scale = randomRange(80, 200);
-    sprite.scale.set(scale, scale * 0.4, 1);
+    const scale = randomRange(120, 350);
+    sprite.scale.set(scale, scale * 0.35, 1);
     sprite.position.set(
-      randomRange(-WORLD_HALF, WORLD_HALF),
-      CLOUD_HEIGHT + randomRange(-20, 20),
-      randomRange(-WORLD_HALF, WORLD_HALF),
+      randomRange(-CLOUD_SPREAD, CLOUD_SPREAD),
+      CLOUD_HEIGHT + randomRange(-50, 80),
+      randomRange(-CLOUD_SPREAD, CLOUD_SPREAD),
     );
 
     group.add(sprite);
@@ -85,10 +87,10 @@ export function createCloudLayer() {
       cloud.position.z += speed.z * dt;
 
       // Wrap around world bounds
-      if (cloud.position.x > WORLD_HALF) cloud.position.x = -WORLD_HALF;
-      if (cloud.position.x < -WORLD_HALF) cloud.position.x = WORLD_HALF;
-      if (cloud.position.z > WORLD_HALF) cloud.position.z = -WORLD_HALF;
-      if (cloud.position.z < -WORLD_HALF) cloud.position.z = WORLD_HALF;
+      if (cloud.position.x > CLOUD_SPREAD) cloud.position.x = -CLOUD_SPREAD;
+      if (cloud.position.x < -CLOUD_SPREAD) cloud.position.x = CLOUD_SPREAD;
+      if (cloud.position.z > CLOUD_SPREAD) cloud.position.z = -CLOUD_SPREAD;
+      if (cloud.position.z < -CLOUD_SPREAD) cloud.position.z = CLOUD_SPREAD;
     }
   }
 
