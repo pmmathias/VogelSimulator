@@ -13,6 +13,7 @@ export class InputManager {
     // Source tracking
     this.source = 'keyboard'; // 'keyboard' or 'pose'
     this.forceKeyboard = false; // T toggles this
+    this.poseAvailable = false; // set true when webcam+pose is ready
     this.onModeChange = null;  // callback when mode changes
 
     this._keys = {};
@@ -53,19 +54,15 @@ export class InputManager {
   }
 
   update(dt) {
-    // Use pose input if available and not forced to keyboard
-    if (!this.forceKeyboard && this._poseInput && (
-      this._poseInput.flapStrength > 0 ||
-      Math.abs(this._poseInput.roll) > 0.05 ||
-      Math.abs(this._poseInput.pitch) > 0.05 ||
-      this._poseInput.diveActive
-    )) {
+    // Pose mode: ALWAYS active when webcam is available and not forced to keyboard
+    // No activation threshold — ArmAnalyzer always provides sensible defaults (GLIDE)
+    if (!this.forceKeyboard && this.poseAvailable && this._poseInput) {
       this.source = 'pose';
       this.lift = this._poseInput.flapStrength;
       this.roll = this._poseInput.roll;
       this.pitch = this._poseInput.pitch;
       this.wingSpread = this._poseInput.wingSpread ?? 1.0;
-      // Dive only when sustained intent (not brief hand loss)
+      // Dive gesture
       if (this._poseInput.diveActive) {
         this.wingSpread = 0;
         this.pitch = Math.min(this.pitch, -0.6);
