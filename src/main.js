@@ -4,7 +4,7 @@ import { createRenderer } from './core/Renderer.js';
 import { createScene } from './core/Scene.js';
 import { GameLoop } from './core/GameLoop.js';
 import { InputManager } from './core/InputManager.js';
-import { createDebugPanel } from './ui/DebugPanel.js';
+// Debug panel removed — webcam overlay serves as debug view
 import { HUD } from './ui/HUD.js';
 import { WebcamOverlay } from './ui/WebcamOverlay.js';
 import { buildWorld } from './world/WorldBuilder.js';
@@ -15,6 +15,7 @@ import { CameraRig } from './flight/CameraRig.js';
 import { WebcamManager } from './pose/WebcamManager.js';
 import { PoseDetector } from './pose/PoseDetector.js';
 import { ArmAnalyzer } from './pose/ArmAnalyzer.js';
+import { Autopilot, DEMO_SEQUENCE } from './core/Autopilot.js';
 import {
   CAMERA_FOV, CAMERA_NEAR, CAMERA_FAR,
   FOG_NEAR, FOG_FAR,
@@ -22,7 +23,7 @@ import {
 
 // --- Renderer & Scene ---
 const renderer = createRenderer();
-const scene = createScene();
+const scene = createScene(renderer);
 
 // --- Camera ---
 const camera = new THREE.PerspectiveCamera(
@@ -49,10 +50,42 @@ const world = buildWorld(scene);
 
 // --- Flight system ---
 const flightState = new FlightState();
+// Start well above terrain — sample a grid to find max height nearby
+let maxH = 0;
+for (let sx = -200; sx <= 200; sx += 50) {
+  for (let sz = -200; sz <= 200; sz += 50) {
+    maxH = Math.max(maxH, getTerrainHeight(sx, sz, world.arcs));
+  }
+}
+flightState.position.y = maxH + 80;
+flightState.altitude = flightState.position.y;
+console.log(`Spawn height: ${flightState.position.y.toFixed(0)}m (terrain max nearby: ${maxH.toFixed(0)}m)`);
 const flightPhysics = new FlightPhysics(flightState);
 const cameraRig = new CameraRig(camera, flightState);
 const input = new InputManager();
+// Toggle webcam overlay when input mode changes
+input.onModeChange = (isKeyboard) => {
+  if (webcamOverlay) {
+    isKeyboard ? webcamOverlay.hide() : webcamOverlay.show();
+  }
+};
 const hud = new HUD();
+
+// --- Autopilot ---
+const autopilot = new Autopilot();
+// Expose scene + autopilot for Playwright/external control
+window.__scene = scene;
+window.__startAutopilot = (seq) => {
+  if (!flightMode) {
+    // Auto-enter flight mode
+    flightMode = true;
+    controls.enabled = false;
+    hud.el.style.display = 'block';
+    hud.flapIndicator.style.display = 'flex';
+  }
+  autopilot.start(seq || DEMO_SEQUENCE);
+};
+window.__stopAutopilot = () => autopilot.stop();
 
 // --- Pose detection ---
 const webcamManager = new WebcamManager();
@@ -62,7 +95,7 @@ let webcamOverlay = null;
 let poseActive = false;
 
 // --- Flight mode toggle ---
-let flightMode = false;
+let flightMode = true; // start in flight mode
 
 async function initWebcam() {
   const video = await webcamManager.init();
@@ -78,8 +111,14 @@ async function initWebcam() {
   }
 
   webcamOverlay = new WebcamOverlay(video);
-  webcamOverlay.hide();
   poseActive = true;
+
+  // Show overlay if in webcam mode, hide if keyboard
+  if (!input.forceKeyboard) {
+    webcamOverlay.show();
+  } else {
+    webcamOverlay.hide();
+  }
 
   // Auto-calibrate after a short delay
   setTimeout(() => {
@@ -105,8 +144,27 @@ window.addEventListener('keydown', (e) => {
     }
 
     hud.hint.innerHTML = flightMode
-      ? 'SPACE = Flap &nbsp;|&nbsp; A/D = Turn &nbsp;|&nbsp; W/S = Pitch &nbsp;|&nbsp; F = Debug Camera &nbsp;|&nbsp; C = Recalibrate'
+      ? 'SPACE = Flap &nbsp;|&nbsp; A/D = Turn &nbsp;|&nbsp; W = Dive &nbsp;|&nbsp; S = Climb &nbsp;|&nbsp; T = Toggle Webcam/Keys &nbsp;|&nbsp; F = Debug Cam &nbsp;|&nbsp; C = Recalibrate'
       : 'F = Enter Flight Mode &nbsp;|&nbsp; Mouse = Orbit Camera';
+  }
+
+  // P = start autopilot demo
+  if (e.code === 'KeyP') {
+    if (autopilot.active) {
+      autopilot.stop();
+    } else {
+      window.__startAutopilot();
+    }
+  }
+
+  // R = regenerate world (clear cache, reload)
+  if (e.code === 'KeyR' && !flightMode) {
+    localStorage.removeItem('world_arcs');
+    localStorage.removeItem('world_heightmap');
+    localStorage.removeItem('world_resolution');
+    localStorage.removeItem('world_version');
+    console.log('World cache cleared — reloading...');
+    location.reload();
   }
 
   // Recalibrate pose
@@ -119,30 +177,11 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-// Start in debug mode
-hud.el.style.display = 'none';
-hud.flapIndicator.style.display = 'none';
+// Start in flight mode
+controls.enabled = false;
+hud.hint.innerHTML = 'SPACE = Flap &nbsp;|&nbsp; A/D = Turn &nbsp;|&nbsp; W = Dive &nbsp;|&nbsp; S = Climb &nbsp;|&nbsp; T = Toggle Webcam/Keys &nbsp;|&nbsp; F = Debug Cam &nbsp;|&nbsp; P = Autopilot';
 
-// --- Debug Panel ---
-createDebugPanel({
-  fogNear: FOG_NEAR,
-  fogFar: FOG_FAR,
-  onWireframe: (v) => {
-    scene.traverse((obj) => {
-      if (obj.isMesh && obj.material) {
-        if (Array.isArray(obj.material)) {
-          obj.material.forEach((m) => { m.wireframe = v; });
-        } else {
-          obj.material.wireframe = v;
-        }
-      }
-    });
-  },
-  onFogChange: (near, far) => {
-    scene.fog.near = near;
-    scene.fog.far = far;
-  },
-});
+// Debug panel removed — use webcam overlay for pose debugging
 
 // --- Game Loop ---
 const loop = new GameLoop();
@@ -158,13 +197,16 @@ loop.onUpdate((dt) => {
 
       if (webcamOverlay) {
         webcamOverlay.drawSkeleton(landmarks);
+        webcamOverlay.showGesture(armAnalyzer.gesture);
       }
     }
 
-    // Update input
+    // Update input (autopilot overrides if active)
     input.update(dt);
+    autopilot.update(dt, input);
 
     // Apply controls to physics
+    flightState.wingSpread = input.wingSpread;
     flightPhysics.flap(input.lift);
     flightPhysics.applyRoll(input.roll, dt);
     flightPhysics.applyPitch(input.pitch, dt);
@@ -182,7 +224,7 @@ loop.onUpdate((dt) => {
     cameraRig.update(dt);
 
     // HUD
-    hud.update(flightState, input.lift > 0);
+    hud.update(flightState, input.lift > 0, input.source);
   } else {
     controls.update();
   }

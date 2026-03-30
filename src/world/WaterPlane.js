@@ -8,7 +8,7 @@ import { WORLD_SIZE, WATER_LEVEL } from '../constants.js';
  * @returns {{ mesh: Water, update: (dt: number) => void }}
  */
 export function createWaterPlane(sun) {
-  const geometry = new THREE.PlaneGeometry(WORLD_SIZE * 1.5, WORLD_SIZE * 1.5);
+  const geometry = new THREE.PlaneGeometry(WORLD_SIZE * 4, WORLD_SIZE * 4);
 
   const water = new Water(geometry, {
     textureWidth: 512,
@@ -22,25 +22,36 @@ export function createWaterPlane(sun) {
       },
       undefined,
       () => {
-        // Fallback: generate a simple normal map procedurally
+        // Fallback: generate a tileable wave normal map procedurally
         const canvas = document.createElement('canvas');
-        canvas.width = 256;
-        canvas.height = 256;
+        const sz = 512;
+        canvas.width = sz;
+        canvas.height = sz;
         const ctx = canvas.getContext('2d');
-        // Flat normal (128, 128, 255) = pointing up
+        // Base flat normal
         ctx.fillStyle = '#8080ff';
-        ctx.fillRect(0, 0, 256, 256);
-        // Add some variation
-        for (let i = 0; i < 500; i++) {
-          const x = Math.random() * 256;
-          const y = Math.random() * 256;
-          const r = 2 + Math.random() * 8;
-          const nr = 120 + Math.floor(Math.random() * 16);
-          const ng = 120 + Math.floor(Math.random() * 16);
-          ctx.fillStyle = `rgb(${nr}, ${ng}, 255)`;
-          ctx.beginPath();
-          ctx.arc(x, y, r, 0, Math.PI * 2);
-          ctx.fill();
+        ctx.fillRect(0, 0, sz, sz);
+
+        // Layered wave-like noise for realistic ripples
+        for (let octave = 0; octave < 3; octave++) {
+          const count = [200, 400, 800][octave];
+          const maxR = [20, 8, 3][octave];
+          const strength = [20, 12, 6][octave];
+          for (let i = 0; i < count; i++) {
+            const x = Math.random() * sz;
+            const y = Math.random() * sz;
+            const r = 1 + Math.random() * maxR;
+            const angle = Math.random() * Math.PI * 2;
+            const nr = 128 + Math.floor(Math.cos(angle) * strength);
+            const ng = 128 + Math.floor(Math.sin(angle) * strength);
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, r);
+            gradient.addColorStop(0, `rgb(${nr}, ${ng}, 255)`);
+            gradient.addColorStop(1, `rgb(128, 128, 255)`);
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
         const tex = new THREE.CanvasTexture(canvas);
         tex.wrapS = THREE.RepeatWrapping;
@@ -52,7 +63,7 @@ export function createWaterPlane(sun) {
     sunColor: 0xffffff,
     waterColor: 0x001e0f,
     distortionScale: 3.7,
-    fog: true,
+    fog: false, // water extends to horizon, fog would make it blue
   });
 
   water.rotation.x = -Math.PI / 2;

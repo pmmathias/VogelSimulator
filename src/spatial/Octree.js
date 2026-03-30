@@ -6,8 +6,8 @@ export class Octree {
   constructor() {
     // Root bounds encompass the entire world
     const bounds = new THREE.Box3(
-      new THREE.Vector3(-WORLD_HALF, -100, -WORLD_HALF),
-      new THREE.Vector3(WORLD_HALF, 500, WORLD_HALF),
+      new THREE.Vector3(-WORLD_HALF, -200, -WORLD_HALF),
+      new THREE.Vector3(WORLD_HALF, 2000, WORLD_HALF),
     );
     this.root = new OctreeNode(bounds);
   }
@@ -21,9 +21,10 @@ export class Octree {
       mesh.geometry.computeBoundingBox();
     }
 
-    // Transform bounding box to world space
+    // Transform bounding box to world space with padding to prevent culling artifacts
     const bbox = mesh.geometry.boundingBox.clone();
     bbox.applyMatrix4(mesh.matrixWorld);
+    bbox.expandByScalar(50); // padding to account for height variations
 
     this.root.insert({ bbox, data: mesh });
   }

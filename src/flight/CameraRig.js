@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { lerp } from '../utils/math.js';
-import { CHASE_DISTANCE, CHASE_HEIGHT } from '../constants.js';
+import { CHASE_DISTANCE, CHASE_HEIGHT, CAMERA_FOV } from '../constants.js';
 
 /**
  * Third-person chase camera that smoothly follows the bird.
@@ -43,8 +43,8 @@ export class CameraRig {
       this._initialized = true;
     }
 
-    // Smooth follow
-    const followSpeed = 4.0;
+    // Smooth follow — faster at high speed for tighter dive feel
+    const followSpeed = 4.0 + Math.max(0, s.speed - 20) * 0.1;
     const t = 1 - Math.exp(-followSpeed * dt);
 
     this._currentPos.lerp(desiredPos, t);
@@ -62,5 +62,11 @@ export class CameraRig {
       new THREE.Vector3(1, 0, 0), s.pitch * 0.15
     );
     this.camera.quaternion.copy(camQuat).multiply(rollQuat).multiply(pitchQuat);
+
+    // Speed-rush FOV: subtle widening at high speed
+    const speedRatio = s.speed / 40; // normalized around cruise speed
+    const targetFov = CAMERA_FOV + Math.max(0, (speedRatio - 1.5)) * 15; // max +15° only at very high speed
+    this.camera.fov += (targetFov - this.camera.fov) * 3.0 * dt;
+    this.camera.updateProjectionMatrix();
   }
 }
