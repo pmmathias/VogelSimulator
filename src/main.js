@@ -112,6 +112,7 @@ async function initWebcam() {
 
   webcamOverlay = new WebcamOverlay(video);
   poseActive = true;
+  input.poseAvailable = true;
 
   // Show overlay if in webcam mode, hide if keyboard
   if (!input.forceKeyboard) {
@@ -186,7 +187,7 @@ hud.hint.innerHTML = 'SPACE = Flap &nbsp;|&nbsp; A/D = Turn &nbsp;|&nbsp; W = Di
 // --- Game Loop ---
 const loop = new GameLoop();
 loop.onUpdate((dt) => {
-  world.update(dt, camera);
+  world.update(dt, camera, flightState.altitude);
 
   if (flightMode) {
     // Pose detection

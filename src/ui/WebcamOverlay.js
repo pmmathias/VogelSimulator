@@ -7,7 +7,7 @@
 const GESTURES = [
   { id: 'FLAP!', label: 'Flap', desc: 'Arms up & down', color: '#ffdd00' },
   { id: 'GLIDE', label: 'Glide', desc: 'Arms spread', color: '#66ccff' },
-  { id: 'DIVE', label: 'Dive', desc: 'Arms down', color: '#ff4444' },
+  { id: 'DIVE', label: 'Dive', desc: 'Duck down!', color: '#ff4444' },
   { id: 'CLIMB', label: 'Climb', desc: 'Lean back', color: '#44ff88' },
   { id: 'TURN LEFT', label: 'Turn L', desc: 'Left arm up', color: '#ff88ff' },
   { id: 'TURN RIGHT', label: 'Turn R', desc: 'Right arm up', color: '#ffaa44' },
@@ -56,9 +56,17 @@ function drawStickFigure(ctx, x, y, w, h, gestureId) {
       lax = cx - armLen; lay = shoulderY;
       rax = cx + armLen; ray = shoulderY;
       break;
-    case 'DIVE': // arms down along body
-      lax = cx - w * 0.1; lay = hipY - h * 0.05;
-      rax = cx + w * 0.1; ray = hipY - h * 0.05;
+    case 'DIVE': // ducking down — figure crouched lower
+      lax = cx - armLen * 0.7; lay = shoulderY + h * 0.15;
+      rax = cx + armLen * 0.7; ray = shoulderY + h * 0.15;
+      // Draw downward arrow to indicate "duck"
+      ctx.beginPath();
+      ctx.moveTo(cx, y + h * 0.02);
+      ctx.lineTo(cx, y + h * 0.15);
+      ctx.moveTo(cx - 3, y + h * 0.11);
+      ctx.lineTo(cx, y + h * 0.15);
+      ctx.lineTo(cx + 3, y + h * 0.11);
+      ctx.stroke();
       break;
     case 'CLIMB': // arms spread, body leaned back
       lax = cx - armLen; lay = shoulderY - h * 0.1;

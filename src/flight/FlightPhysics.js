@@ -221,8 +221,15 @@ export class FlightPhysics {
    * @param {number} terrainHeight - ground height at current position
    */
   enforceGround(terrainHeight) {
-    // Allow underwater diving: skip ground collision if terrain is below water
-    if (terrainHeight < 14) return; // over water — let bird dive through surface
+    // Underwater: allow diving but enforce seabed collision (max 30m below water)
+    if (terrainHeight < 14) {
+      const seabed = Math.max(terrainHeight, -15) + 1.0;
+      if (this.state.position.y < seabed) {
+        this.state.position.y = seabed;
+        if (this.state.velocity.y < 0) this.state.velocity.y = 0;
+      }
+      return;
+    }
     const minAlt = terrainHeight + 1.0;
     if (this.state.position.y < minAlt) {
       this.state.position.y = minAlt;

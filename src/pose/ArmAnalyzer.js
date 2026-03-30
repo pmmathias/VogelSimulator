@@ -1,45 +1,49 @@
 import { angleBetween, clamp, remap } from '../utils/math.js';
 
-// MediaPipe landmark indices
 const LEFT_SHOULDER = 11;
 const LEFT_ELBOW = 13;
 const LEFT_WRIST = 15;
 const RIGHT_SHOULDER = 12;
 const RIGHT_ELBOW = 14;
 const RIGHT_WRIST = 16;
+const NOSE = 0;
 
 /**
- * Analyzes arm positions from pose landmarks to produce flight control inputs.
- * Uses direction-change detection for robust flap recognition.
+ * Gesture recognition from pose landmarks.
+ *
+ * Gestures (from arm position):
+ * - FLAP: arms moving up & down (amplitude-based)
+ * - GLIDE: arms spread horizontally
+ * - DIVE: duck/crouch (nose drops in frame)
+ * - CLIMB: arms raised high
+ * - TURN: one arm higher than other
  */
 export class ArmAnalyzer {
   constructor() {
     this.calibrated = false;
     this.restShoulderY = 0.5;
+    this.restNoseY = 0.35; // will be set during calibration
 
-    // Flap detection — direction change based
-    this._prevElevation = 0;
-    this._movingUp = false;
-    this._directionChanges = 0;
-    this._dirChangeWindow = [];   // timestamps of direction changes
-    this._lastFlapTime = 0;
-    this._flapCooldown = 150;     // ms — fast response
-
-    // Smoothed outputs
+    // Outputs (smoothed)
     this.flapStrength = 0;
     this.roll = 0;
     this.pitch = 0;
     this.wingSpread = 1;
-
-    // Gesture label for overlay
     this.gesture = 'GLIDE';
-
-    // Missing landmarks handling
-    this._missingFrames = 0;
-
-    // Dive intent counter — must be consistently low wingSpread to trigger dive
-    this._diveIntentFrames = 0;
     this._diveActive = false;
+
+    // Flap state
+    this._prevElevation = 0;
+    this._moveSpeed = 0;
+    this._elevWindow = [];
+    this._lastFlapTime = 0;
+
+    // Smoothed gesture state (prevents flickering)
+    this._gestureHoldTime = 0;
+    this._lastGesture = 'GLIDE';
+
+    // Missing frames
+    this._missingFrames = 0;
 
     // Raw values
     this.leftArmElevation = 0;
@@ -53,38 +57,33 @@ export class ArmAnalyzer {
     const ls = landmarks[LEFT_SHOULDER];
     const rs = landmarks[RIGHT_SHOULDER];
     this.restShoulderY = (ls.y + rs.y) / 2;
+    const nose = landmarks[NOSE];
+    if (nose) this.restNoseY = nose.y;
     this.calibrated = true;
+    console.log(`Calibrated: shoulderY=${this.restShoulderY.toFixed(3)}, noseY=${this.restNoseY.toFixed(3)}`);
   }
 
   _isVisible(lm) {
     if (!lm) return false;
-    const vis = lm.visibility ?? 1;
-    return vis > 0.3 && lm.x > 0.02 && lm.x < 0.98 && lm.y > 0.02 && lm.y < 0.98;
+    return (lm.visibility ?? 1) > 0.3 && lm.x > 0.02 && lm.x < 0.98 && lm.y > 0.02 && lm.y < 0.98;
   }
 
   analyze(landmarks) {
-    // --- Handle missing/invalid landmarks → fade to GLIDE ---
+    const now = performance.now();
+
+    // --- Missing landmarks → fade to glide ---
     if (!landmarks || landmarks.length < 17) {
       this._missingFrames++;
-      this.flapStrength = 0;
-
-      // After 5 missing frames: immediately fade to neutral glide
       if (this._missingFrames > 5) {
-        const fadeRate = 0.15; // fast fade to safety
-        this.roll += (0 - this.roll) * fadeRate;
-        this.pitch += (0 - this.pitch) * fadeRate;
-        this.wingSpread += (1.0 - this.wingSpread) * fadeRate; // spread wings = glide
-        this.gesture = 'NO TRACKING';
-        this._diveIntentFrames = 0;
+        this.flapStrength *= 0.8;
+        this.roll *= 0.9;
+        this.pitch *= 0.9;
+        this.wingSpread += (1.0 - this.wingSpread) * 0.1;
         this._diveActive = false;
+        this.gesture = 'NO TRACKING';
       }
-
-      return {
-        flapStrength: 0, roll: this.roll, pitch: this.pitch,
-        wingSpread: this.wingSpread,
-      };
+      return this._output();
     }
-
     this._missingFrames = 0;
 
     const ls = landmarks[LEFT_SHOULDER];
@@ -93,124 +92,131 @@ export class ArmAnalyzer {
     const rs = landmarks[RIGHT_SHOULDER];
     const re = landmarks[RIGHT_ELBOW];
     const rw = landmarks[RIGHT_WRIST];
+    const nose = landmarks[NOSE];
 
-    // Check arm visibility
     this.leftVisible = this._isVisible(lw) && this._isVisible(ls);
     this.rightVisible = this._isVisible(rw) && this._isVisible(rs);
 
-    // If neither arm visible but landmarks exist (body only) → glide, don't dive
     if (!this.leftVisible && !this.rightVisible) {
-      this._missingFrames++;
-      this.flapStrength = 0;
-      this.wingSpread += (1.0 - this.wingSpread) * 0.1; // fade to glide
-      this._diveIntentFrames = 0;
+      this.wingSpread += (1.0 - this.wingSpread) * 0.1;
+      this._diveActive = false;
       this.gesture = 'GLIDE';
-      return {
-        flapStrength: 0, roll: this.roll, pitch: this.pitch,
-        wingSpread: this.wingSpread,
-      };
+      return this._output();
     }
 
     // --- Arm elevation ---
     if (this.leftVisible) this.leftArmElevation = ls.y - lw.y;
     if (this.rightVisible) this.rightArmElevation = rs.y - rw.y;
+    if (this.leftVisible && !this.rightVisible) this.rightArmElevation = this.leftArmElevation;
+    if (this.rightVisible && !this.leftVisible) this.leftArmElevation = this.rightArmElevation;
 
-    // Mirror if only one arm visible
-    if (this.leftVisible && !this.rightVisible) {
-      this.rightArmElevation = this.leftArmElevation;
-    } else if (this.rightVisible && !this.leftVisible) {
-      this.leftArmElevation = this.rightArmElevation;
-    }
+    const avgElev = (this.leftArmElevation + this.rightArmElevation) / 2;
 
-    const avgElevation = (this.leftArmElevation + this.rightArmElevation) / 2;
-
-    // --- FLAP DETECTION: Amplitude + movement based ---
-    const now = performance.now();
-
-    // Track elevation history for amplitude
-    if (!this._elevWindow) this._elevWindow = [];
-    this._elevWindow.push(avgElevation);
+    // === 1. FLAP DETECTION (amplitude + movement speed) ===
+    this._elevWindow.push(avgElev);
     if (this._elevWindow.length > 20) this._elevWindow.shift();
-    const elevMin = Math.min(...this._elevWindow);
-    const elevMax = Math.max(...this._elevWindow);
-    const amplitude = elevMax - elevMin;
+    const amplitude = Math.max(...this._elevWindow) - Math.min(...this._elevWindow);
 
-    // Track movement speed (smoothed)
-    const elevDelta = avgElevation - this._prevElevation;
-    if (!this._moveSpeed) this._moveSpeed = 0;
-    this._moveSpeed = this._moveSpeed * 0.7 + Math.abs(elevDelta) * 0.3; // smoothed
-    this._prevElevation = avgElevation;
+    const elevDelta = avgElev - this._prevElevation;
+    this._moveSpeed = this._moveSpeed * 0.7 + Math.abs(elevDelta) * 0.3;
+    this._prevElevation = avgElev;
 
-    // Flap detection: arms are moving with sufficient amplitude
-    // STAYS ACTIVE as long as movement continues (not just 1 frame)
-    if (amplitude > 0.02 && this._moveSpeed > 0.002) {
-      // Active flapping detected!
-      this.flapStrength = clamp(amplitude * 6, 0.5, 1.0);
+    // Flap: needs both amplitude AND active movement
+    // Higher thresholds to reduce false positives
+    let rawFlap = false;
+    if (amplitude > 0.04 && this._moveSpeed > 0.004) {
+      rawFlap = true;
       this._lastFlapTime = now;
-    } else if (now - this._lastFlapTime < 300) {
-      // Hysteresis: keep flapping for 300ms after last detection
-      this.flapStrength = 0.5;
-    } else {
-      this.flapStrength = 0;
     }
 
-    // --- Roll (lateral tilt) ---
-    const elevationDiff = this.rightArmElevation - this.leftArmElevation;
-    const targetRoll = clamp(elevationDiff * 2.5, -1, 1);
-    this.roll += (targetRoll - this.roll) * 0.3;
+    // Hysteresis: hold flap for 400ms after last detection
+    if (rawFlap) {
+      this.flapStrength = clamp(amplitude * 5, 0.5, 1.0);
+    } else if (now - this._lastFlapTime < 400) {
+      this.flapStrength = Math.max(this.flapStrength * 0.95, 0.3);
+    } else {
+      this.flapStrength *= 0.85; // slow fade
+      if (this.flapStrength < 0.05) this.flapStrength = 0;
+    }
 
-    // --- Pitch from arm elevation (NOT shoulder lean) ---
-    // Arms high = climb, arms horizontal = neutral, arms down = dive
-    const isFlapping = this.flapStrength > 0;
+    // === 2. DIVE DETECTION ===
+    // Method A: ducking (nose drops in frame)
+    const noseY = nose ? nose.y : this.restNoseY;
+    const duckAmount = noseY - this.restNoseY;
+    const isDucking = duckAmount > 0.05;
+
+    // Method B: arms below shoulders (negative elevation = arms hanging down)
+    const armsDown = avgElev < -0.02;
+
+    // Either method triggers dive (when not flapping)
+    const wantsDive = (isDucking || armsDown) && this.flapStrength < 0.1;
+
+    if (wantsDive) {
+      this._diveActive = true;
+    } else if (this._diveActive && !isDucking && avgElev > 0.05) {
+      // Exit dive only when arms clearly raised back up AND not ducking
+      this._diveActive = false;
+    }
+
+    // === 3. ROLL (one arm higher) ===
+    const elevDiff = this.rightArmElevation - this.leftArmElevation;
+    const targetRoll = clamp(elevDiff * 2.5, -1, 1);
+    this.roll += (targetRoll - this.roll) * 0.15; // slower = less jittery
+
+    // === 4. PITCH (from arm elevation, suppressed during flap) ===
     let targetPitch;
-    if (isFlapping) {
-      targetPitch = 0.1; // slight upward during flap
-    } else if (avgElevation > 0.12) {
-      targetPitch = clamp((avgElevation - 0.12) * 8, 0, 1); // climb
-    } else if (avgElevation < -0.03) {
-      targetPitch = clamp((avgElevation + 0.03) * 6, -1, 0); // dive
+    if (this._diveActive) {
+      targetPitch = -0.6;
+    } else if (this.flapStrength > 0.1) {
+      targetPitch = 0.1;
+    } else if (avgElev > 0.12) {
+      targetPitch = clamp((avgElev - 0.12) * 6, 0, 0.8);
     } else {
-      targetPitch = 0; // neutral glide
+      targetPitch = 0;
     }
-    this.pitch += (targetPitch - this.pitch) * 0.3;
+    this.pitch += (targetPitch - this.pitch) * 0.15; // slower = smoother
 
-    // --- Wing spread ---
+    // === 5. WING SPREAD ===
     const recentlyFlapped = (now - this._lastFlapTime < 600);
-    const rawWingSpread = clamp(remap(avgElevation, -0.08, 0.10, 0, 1), 0, 1);
-    const targetWingSpread = recentlyFlapped ? 1.0 : rawWingSpread;
-    // wingSpread transitions — fast down for responsive dive, moderate up
-    const spreadRate = targetWingSpread < this.wingSpread ? 0.3 : 0.15;
-    this.wingSpread += (targetWingSpread - this.wingSpread) * spreadRate;
+    const rawSpread = clamp(remap(avgElev, -0.08, 0.10, 0, 1), 0, 1);
+    const targetSpread = this._diveActive ? 0 : (recentlyFlapped ? 1.0 : rawSpread);
+    const spreadRate = targetSpread < this.wingSpread ? 0.2 : 0.1;
+    this.wingSpread += (targetSpread - this.wingSpread) * spreadRate;
 
-    // --- Dive intent with hysteresis ---
-    // Need 10 frames to ENTER dive, but once in dive, stay until wingSpread > 0.6
-    if (this.wingSpread < 0.4 && !recentlyFlapped) {
-      this._diveIntentFrames++;
-    } else if (this._diveActive && this.wingSpread < 0.55) {
-      // Hysteresis — stay in dive until arms clearly spread
-      this._diveIntentFrames = Math.max(5, this._diveIntentFrames);
+    // === 6. GESTURE LABEL (with hold time to prevent flickering) ===
+    let newGesture;
+    if (this._diveActive) {
+      newGesture = 'DIVE';
+    } else if (this.flapStrength > 0.1) {
+      newGesture = 'FLAP!';
+    } else if (this.pitch > 0.15) {
+      newGesture = 'CLIMB';
+    } else if (Math.abs(this.roll) > 0.25) {
+      newGesture = this.roll > 0 ? 'TURN LEFT' : 'TURN RIGHT';
     } else {
-      this._diveIntentFrames = Math.max(0, this._diveIntentFrames - 1);
-    }
-    this._diveActive = this._diveIntentFrames > 5; // faster entry (5 frames ≈ 0.17s)
-
-    // Apply deadzone
-    if (Math.abs(this.roll) < 0.08) this.roll = 0;
-    if (Math.abs(this.pitch) < 0.08) this.pitch = 0;
-
-    // --- Gesture label ---
-    if (this.flapStrength > 0) {
-      this.gesture = 'FLAP!';
-    } else if (this._diveActive) {
-      this.gesture = 'DIVE';
-    } else if (this.pitch > 0.2) {
-      this.gesture = 'CLIMB';
-    } else if (Math.abs(this.roll) > 0.3) {
-      this.gesture = this.roll > 0 ? 'TURN LEFT' : 'TURN RIGHT';
-    } else {
-      this.gesture = 'GLIDE';
+      newGesture = 'GLIDE';
     }
 
+    // Hold current gesture for at least 300ms to prevent flickering
+    if (newGesture !== this._lastGesture) {
+      if (now - this._gestureHoldTime > 300) {
+        this.gesture = newGesture;
+        this._lastGesture = newGesture;
+        this._gestureHoldTime = now;
+      }
+    } else {
+      this.gesture = newGesture;
+      this._gestureHoldTime = now;
+    }
+
+    // Deadzone
+    if (Math.abs(this.roll) < 0.06) this.roll = 0;
+    if (Math.abs(this.pitch) < 0.06) this.pitch = 0;
+
+    return this._output();
+  }
+
+  _output() {
     return {
       flapStrength: this.flapStrength,
       roll: this.roll,
