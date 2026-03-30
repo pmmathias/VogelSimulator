@@ -4,6 +4,7 @@ import { createWaterPlane } from './WaterPlane.js';
 import { createCloudLayer } from './CloudPlane.js';
 import { createForest } from './ForestPlacer.js';
 import { createHouses } from './HousePlacer.js';
+import { UnderwaterWorld } from './Underwater.js';
 import { Octree } from '../spatial/Octree.js';
 import { FrustumCuller } from '../spatial/FrustumCuller.js';
 import { createTerrainMaterial } from './TerrainShader.js';
@@ -93,6 +94,9 @@ export function buildWorld(scene) {
   scene.add(forest);
   console.timeEnd('Forest');
 
+  // --- Underwater world ---
+  const underwater = new UnderwaterWorld(scene, arcs);
+
   // --- Octree + Frustum Culler ---
   console.time('Octree');
   const octree = new Octree();
@@ -103,10 +107,11 @@ export function buildWorld(scene) {
   const frustumCuller = new FrustumCuller(octree, chunks);
   console.timeEnd('Octree');
 
-  function update(dt, camera) {
+  function update(dt, camera, birdAltitude) {
     water.update(dt);
     clouds.update(dt);
     frustumCuller.update(camera);
+    underwater.update(dt, birdAltitude);
   }
 
   return { update, arcs, terrainChunks: chunks };

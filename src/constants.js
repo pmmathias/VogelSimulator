@@ -50,7 +50,7 @@ export const CD_PARASITIC = 0.025;       // zero-lift drag coefficient
 export const CD_INDUCED_K = 0.08;        // induced drag factor (K in CD = CD0 + K·CL²)
 
 // Flapping
-export const FLAP_THRUST = 120;          // Newtons peak thrust per flap
+export const FLAP_THRUST = 150;          // Newtons peak thrust per flap
 export const FLAP_DURATION = 0.3;        // seconds for one downstroke
 export const FLAP_COOLDOWN = 0.25;       // minimum seconds between flaps
 export const FLAP_LIFT_BONUS = 0.6;      // extra CL added during downstroke
@@ -68,8 +68,8 @@ export const MAX_ROLL = 1.0;             // ~57° max bank
 export const MAX_PITCH = 0.7;            // ~40° max pitch
 
 // Camera
-export const FOG_NEAR = 500;
-export const FOG_FAR = 3500;
+export const FOG_NEAR = 600;
+export const FOG_FAR = 5000;
 export const CAMERA_FOV = 60;
 export const CAMERA_NEAR = 2.0;
 export const CAMERA_FAR = 8000;          // far enough for water horizon
