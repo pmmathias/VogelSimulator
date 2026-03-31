@@ -167,33 +167,27 @@ export class ArmAnalyzer {
     // === ROLL: elevation difference ===
     const elevDiff = rightElev - leftElev;
     const targetRoll = clamp(elevDiff * 2.5, -1, 1);
-    this.roll += (targetRoll - this.roll) * 0.06;
+    this.roll += (targetRoll - this.roll) * 0.04;
 
-    // === PITCH: proportional to elevation (not binary) ===
-    // avgElev > 0 = hands above shoulders, < 0 = below
+    // === PITCH: fully continuous, no deadzone, no steps ===
+    // Linear mapping: avgElev directly maps to pitch
     let targetPitch;
     if (isFlapping) {
       targetPitch = 0.1;
-    } else if (avgElev > 0.02) {
-      // CLIMB: proportional — higher hands = steeper climb
-      targetPitch = clamp(avgElev * 4, 0, 0.8);
-    } else if (avgElev < -0.02) {
-      // DIVE: proportional — lower hands = steeper dive
-      targetPitch = clamp(avgElev * 4, -0.8, 0);
     } else {
-      targetPitch = 0; // neutral zone ±0.02
+      targetPitch = clamp(avgElev * 3.0, -0.7, 0.7); // smooth linear scaling
     }
-    this.pitch += (targetPitch - this.pitch) * 0.06; // very gentle transitions
+    this.pitch += (targetPitch - this.pitch) * 0.04; // ultra smooth
 
-    // === WING SPREAD: proportional ===
+    // === WING SPREAD: fully continuous ===
     const recentlyFlapped = (now - this._lastFlapTime < 600);
     let targetSpread;
     if (recentlyFlapped) {
       targetSpread = 1.0;
     } else {
-      targetSpread = clamp(remap(avgElev, -0.1, 0.05, 0, 1), 0, 1);
+      targetSpread = clamp(remap(avgElev, -0.12, 0.06, 0, 1), 0, 1);
     }
-    this.wingSpread += (targetSpread - this.wingSpread) * 0.08;
+    this.wingSpread += (targetSpread - this.wingSpread) * 0.05;
 
     // === GESTURE LABEL (with 300ms hold) ===
     let newGesture;
