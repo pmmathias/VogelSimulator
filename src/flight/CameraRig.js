@@ -1,70 +1,51 @@
 import * as THREE from 'three';
-import { lerp } from '../utils/math.js';
 import { CHASE_DISTANCE, CHASE_HEIGHT, CAMERA_FOV } from '../constants.js';
 
 /**
- * Third-person chase camera that smoothly follows the bird.
+ * Third-person chase camera centered on bird.
+ * Rotation happens purely in camera orientation, not position offset.
  */
 export class CameraRig {
-  /**
-   * @param {THREE.PerspectiveCamera} camera
-   * @param {import('./FlightState.js').FlightState} flightState
-   */
   constructor(camera, flightState) {
     this.camera = camera;
     this.state = flightState;
     this._currentPos = new THREE.Vector3();
-    this._currentLookAt = new THREE.Vector3();
     this._initialized = false;
   }
 
   update(dt) {
     const s = this.state;
 
-    // Desired camera position: behind and above the bird
-    const behindOffset = s.forward.clone().multiplyScalar(-CHASE_DISTANCE);
-    const upOffset = new THREE.Vector3(0, CHASE_HEIGHT, 0);
-
-    // Add some roll effect to camera (slight lateral offset when banking)
-    const rollOffset = s.right.clone().multiplyScalar(-s.roll * 3);
-
+    // Camera position: directly behind and above the bird
+    // No lateral offset — rotation is purely visual (via quaternion)
     const desiredPos = s.position.clone()
-      .add(behindOffset)
-      .add(upOffset)
-      .add(rollOffset);
-
-    // Look at bird position (not ahead — prevents rotation-induced altitude shifts)
-    const lookAhead = s.position.clone();
+      .addScaledVector(s.forward, -CHASE_DISTANCE)
+      .add(new THREE.Vector3(0, CHASE_HEIGHT, 0));
 
     if (!this._initialized) {
       this._currentPos.copy(desiredPos);
-      this._currentLookAt.copy(lookAhead);
       this._initialized = true;
     }
 
-    // Smooth follow — faster at high speed for tighter dive feel
+    // Smooth follow
     const followSpeed = 4.0 + Math.max(0, s.speed - 20) * 0.1;
     const t = 1 - Math.exp(-followSpeed * dt);
-
     this._currentPos.lerp(desiredPos, t);
-    this._currentLookAt.lerp(lookAhead, t);
 
+    // Position camera and look at bird (rotation center = bird = screen center)
     this.camera.position.copy(this._currentPos);
-    this.camera.lookAt(this._currentLookAt);
+    this.camera.lookAt(s.position);
 
-    // Apply roll and pitch tilt to camera for immersive feel
+    // Apply roll tilt as pure camera rotation (no position shift)
     const camQuat = this.camera.quaternion.clone();
     const rollQuat = new THREE.Quaternion().setFromAxisAngle(
-      new THREE.Vector3(0, 0, 1), s.roll * 0.4
+      new THREE.Vector3(0, 0, 1), s.roll * 0.5
     );
-    const pitchQuat = new THREE.Quaternion().setFromAxisAngle(
-      new THREE.Vector3(1, 0, 0), s.pitch * 0.15
-    );
-    this.camera.quaternion.copy(camQuat).multiply(rollQuat).multiply(pitchQuat);
+    this.camera.quaternion.copy(camQuat).multiply(rollQuat);
 
-    // Speed-rush FOV: subtle widening at high speed
-    const speedRatio = s.speed / 40; // normalized around cruise speed
-    const targetFov = CAMERA_FOV + Math.max(0, (speedRatio - 1.5)) * 15; // max +15° only at very high speed
+    // Speed-rush FOV
+    const speedRatio = s.speed / 40;
+    const targetFov = CAMERA_FOV + Math.max(0, (speedRatio - 1.5)) * 15;
     this.camera.fov += (targetFov - this.camera.fov) * 3.0 * dt;
     this.camera.updateProjectionMatrix();
   }
