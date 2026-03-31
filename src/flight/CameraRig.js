@@ -2,51 +2,64 @@ import * as THREE from 'three';
 import { CHASE_DISTANCE, CHASE_HEIGHT, CAMERA_FOV } from '../constants.js';
 
 /**
- * Third-person chase camera centered on bird.
- * Rotation happens purely in camera orientation, not position offset.
+ * Smooth third-person chase camera.
+ * All transitions are interpolated to prevent jitter at high speed.
  */
 export class CameraRig {
   constructor(camera, flightState) {
     this.camera = camera;
     this.state = flightState;
-    this._currentPos = new THREE.Vector3();
+    this._pos = new THREE.Vector3();
+    this._lookTarget = new THREE.Vector3();
+    this._roll = 0;
+    this._fov = CAMERA_FOV;
     this._initialized = false;
   }
 
   update(dt) {
     const s = this.state;
 
-    // Camera position: directly behind and above the bird
-    // No lateral offset — rotation is purely visual (via quaternion)
+    // Desired position: behind and above bird
     const desiredPos = s.position.clone()
       .addScaledVector(s.forward, -CHASE_DISTANCE)
       .add(new THREE.Vector3(0, CHASE_HEIGHT, 0));
 
+    // Desired look target: bird position
+    const desiredLook = s.position.clone();
+
     if (!this._initialized) {
-      this._currentPos.copy(desiredPos);
+      this._pos.copy(desiredPos);
+      this._lookTarget.copy(desiredLook);
       this._initialized = true;
     }
 
-    // Smooth follow
-    const followSpeed = 3.0 + Math.max(0, s.speed - 20) * 0.05; // smoother follow
-    const t = 1 - Math.exp(-followSpeed * dt);
-    this._currentPos.lerp(desiredPos, t);
+    // Smooth interpolation — constant rate regardless of speed
+    const t = 1 - Math.exp(-3.0 * dt);
+    this._pos.lerp(desiredPos, t);
+    this._lookTarget.lerp(desiredLook, t);
 
-    // Position camera and look at bird (rotation center = bird = screen center)
-    this.camera.position.copy(this._currentPos);
-    this.camera.lookAt(s.position);
+    // Smooth roll
+    this._roll += (s.roll * 0.4 - this._roll) * t;
 
-    // Apply roll tilt as pure camera rotation (no position shift)
-    const camQuat = this.camera.quaternion.clone();
-    const rollQuat = new THREE.Quaternion().setFromAxisAngle(
-      new THREE.Vector3(0, 0, 1), s.roll * 0.5
-    );
-    this.camera.quaternion.copy(camQuat).multiply(rollQuat);
-
-    // Speed-rush FOV
+    // Smooth FOV
     const speedRatio = s.speed / 40;
     const targetFov = CAMERA_FOV + Math.max(0, (speedRatio - 1.5)) * 15;
-    this.camera.fov += (targetFov - this.camera.fov) * 3.0 * dt;
+    this._fov += (targetFov - this._fov) * t;
+
+    // Apply
+    this.camera.position.copy(this._pos);
+    this.camera.lookAt(this._lookTarget);
+
+    // Roll as pure rotation around forward axis
+    if (Math.abs(this._roll) > 0.001) {
+      const camQuat = this.camera.quaternion.clone();
+      const rollQuat = new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(0, 0, 1), this._roll
+      );
+      this.camera.quaternion.copy(camQuat).multiply(rollQuat);
+    }
+
+    this.camera.fov = this._fov;
     this.camera.updateProjectionMatrix();
   }
 }

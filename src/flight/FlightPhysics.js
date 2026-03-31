@@ -151,7 +151,7 @@ export class FlightPhysics {
     if (s.flapPhase > 0) {
       const thrustAccel = FLAP_THRUST * (s.flapStrengthScale || 1) / BIRD_MASS;
       const thrustDir = s.forward.clone();
-      thrustDir.y += 0.6; // moderate upward component (~50% vertical)
+      thrustDir.y += 0.9; // upward component (~55% vertical)
       thrustDir.normalize();
       s.velocity.addScaledVector(thrustDir, thrustAccel * dt);
       s.flapPhase -= dt;
@@ -160,9 +160,9 @@ export class FlightPhysics {
       s.flapCooldown -= dt;
     }
 
-    // --- 8. Auto-trim pitch toward velocity (prevent AoA divergence) ---
-    // DISABLED during dive — auto-trim was fighting the nosedive
-    if (speed > 2 && s.wingSpread > 0.5) {
+    // --- 8. Auto-trim pitch toward velocity ---
+    // DISABLED during dive AND flap — prevents fighting thrust direction
+    if (speed > 2 && s.wingSpread > 0.5 && s.flapPhase <= 0) {
       const velDir = s.velocity.clone().normalize();
       const targetPitch = Math.asin(clamp(velDir.y, -0.8, 0.8));
       s.pitch += (targetPitch - s.pitch) * 0.8 * dt; // gentle auto-trim
