@@ -232,10 +232,53 @@ export class UnderwaterWorld {
     this._originalFogNear = 0;
     this._originalFogFar = 0;
 
+    this._createSeabedArcs();
     this._createOverlay();
     this._createFish();
     this._createWhalesAndSharks();
     this._createCoral();
+  }
+
+  /**
+   * Add underwater canyon arcs — positive-opening parabolas that carve
+   * canyons/trenches into the seabed for interesting underwater topography.
+   */
+  _createSeabedArcs() {
+    const canyonCount = 80;
+    this._seabedArcs = [];
+    for (let i = 0; i < canyonCount; i++) {
+      // Place canyons in ocean areas (near edges)
+      const angle = Math.random() * Math.PI * 2;
+      const dist = WORLD_HALF * (0.5 + Math.random() * 0.4);
+      this._seabedArcs.push({
+        cx: Math.cos(angle) * dist,
+        cz: Math.sin(angle) * dist,
+        radius: 40 + Math.random() * 150,
+        depth: 10 + Math.random() * 30, // how deep the canyon carves
+      });
+    }
+  }
+
+  /**
+   * Get seabed height including underwater canyons.
+   * Normal terrain + canyon depressions below water.
+   */
+  _getSeabedHeight(x, z) {
+    let h = getTerrainHeight(x, z, this._arcs);
+    // Only apply canyons below water level
+    if (h < WATER_LEVEL) {
+      for (const arc of this._seabedArcs) {
+        const dx = x - arc.cx;
+        const dz = z - arc.cz;
+        const distSq = dx * dx + dz * dz;
+        const rSq = arc.radius * arc.radius;
+        const contribution = 1 - distSq / rSq;
+        if (contribution > 0) {
+          h -= arc.depth * contribution; // carve downward
+        }
+      }
+    }
+    return h;
   }
 
   _createOverlay() {
@@ -255,27 +298,33 @@ export class UnderwaterWorld {
    * Ocean = terrain well below water AND near island edge (dist from center > 40% world)
    * or terrain very deep (seabed < WATER_LEVEL - 8, clearly ocean not puddle)
    */
-  _validOceanPos(spread = 0.85) {
+  /**
+   * Find a valid ocean position with minimum depth.
+   * Uses seabed height (with canyon arcs) for accurate depth.
+   * @param {number} minDepth - minimum water depth required (default 5m)
+   */
+  _validOceanPos(spread = 0.85, minDepth = 5) {
     for (let i = 0; i < 80; i++) {
       const x = randomRange(-WORLD_HALF * spread, WORLD_HALF * spread);
       const z = randomRange(-WORLD_HALF * spread, WORLD_HALF * spread);
-      const h = getTerrainHeight(x, z, this._arcs);
-      if (h >= WATER_LEVEL - 2) continue; // not underwater
+      const seabed = this._getSeabedHeight(x, z);
+      const depth = WATER_LEVEL - seabed;
+      if (depth < minDepth) continue; // not deep enough
 
       const distFromCenter = Math.sqrt(x * x + z * z);
-      const isOcean = distFromCenter > WORLD_HALF * 0.4 || h < WATER_LEVEL - 8;
-      if (isOcean) return { x, z, seabed: h };
+      const isOcean = distFromCenter > WORLD_HALF * 0.4 || depth > 8;
+      if (isOcean) return { x, z, seabed, depth };
     }
     return null;
   }
 
-  /** Valid water pos including ponds (for coral only) */
+  /** Valid water pos including ponds (for coral) — uses canyon seabed */
   _validWaterPos(spread = 0.85) {
     for (let i = 0; i < 50; i++) {
       const x = randomRange(-WORLD_HALF * spread, WORLD_HALF * spread);
       const z = randomRange(-WORLD_HALF * spread, WORLD_HALF * spread);
-      const h = getTerrainHeight(x, z, this._arcs);
-      if (h < WATER_LEVEL - 2) return { x, z, seabed: h };
+      const seabed = this._getSeabedHeight(x, z);
+      if (seabed < WATER_LEVEL - 2) return { x, z, seabed };
     }
     return null;
   }
@@ -300,7 +349,7 @@ export class UnderwaterWorld {
       const target = 800;
 
       for (let a = 0; a < target * 3 && positions.length < target; a++) {
-        const pos = this._validOceanPos(); // fish only in ocean, not ponds
+        const pos = this._validOceanPos(0.85, 5); // fish: min 5m depth
         if (pos) {
           const y = randomRange(Math.max(pos.seabed + 1, WATER_LEVEL - 10), WATER_LEVEL - 1);
           positions.push({ ...pos, y });
@@ -326,7 +375,7 @@ export class UnderwaterWorld {
     const sharkTex = new THREE.CanvasTexture(genShark());
     sharkTex.colorSpace = THREE.SRGBColorSpace;
     for (let i = 0; i < 8; i++) {
-      const pos = this._validOceanPos(0.7); // sharks only in ocean
+      const pos = this._validOceanPos(0.7, 8); // sharks: min 8m depth
       if (!pos) continue;
       const mat = new THREE.SpriteMaterial({ map: sharkTex, transparent: true, fog: false });
       const sprite = new THREE.Sprite(mat);
@@ -345,7 +394,7 @@ export class UnderwaterWorld {
       tex.colorSpace = THREE.SRGBColorSpace;
       const count = type === 'humpback' ? 3 : 2;
       for (let i = 0; i < count; i++) {
-        const pos = this._validOceanPos(0.6); // whales only in ocean
+        const pos = this._validOceanPos(0.6, 10); // whales: min 10m depth
         if (!pos) continue;
         const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, fog: false });
         const sprite = new THREE.Sprite(mat);
