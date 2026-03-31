@@ -193,8 +193,9 @@ export class ArmAnalyzer {
     let newGesture;
     if (this._diveActive) newGesture = 'DIVE';
     else if (isFlapping) newGesture = 'FLAP!';
-    else if (this.pitch > 0.15) newGesture = 'CLIMB';
-    else if (Math.abs(this.roll) > 0.25) newGesture = this.roll > 0 ? 'TURN LEFT' : 'TURN RIGHT';
+    else if (this.pitch > 0.05) newGesture = 'CLIMB';
+    else if (this.pitch < -0.05) newGesture = 'DIVE';
+    else if (Math.abs(this.roll) > 0.08) newGesture = this.roll > 0 ? 'TURN LEFT' : 'TURN RIGHT';
     else newGesture = 'GLIDE';
 
     if (newGesture !== this._lastGesture) {
@@ -208,9 +209,8 @@ export class ArmAnalyzer {
       this._gestureHoldTime = now;
     }
 
-    // Deadzone
-    if (Math.abs(this.roll) < 0.06) this.roll = 0;
-    if (Math.abs(this.pitch) < 0.06) this.pitch = 0;
+    // No deadzone — fully continuous control
+    // No pitch deadzone — continuous
 
     return this._output();
   }
