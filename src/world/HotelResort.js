@@ -118,11 +118,14 @@ function createResort(groundY) {
   const g = new THREE.Group();
   const y = groundY;
 
-  // Main hotel (6 floors)
-  createHotelBuilding(g, 0, y, -15, 60, 20, 6);
+  // Main hotel (8 floors — tall and visible from air)
+  createHotelBuilding(g, 0, y, -15, 80, 25, 8);
 
-  // Annex building (4 floors)
-  createHotelBuilding(g, 40, y, -15, 30, 15, 4);
+  // Annex building (5 floors)
+  createHotelBuilding(g, 55, y, -15, 40, 18, 5);
+
+  // Second annex
+  createHotelBuilding(g, -50, y, -10, 35, 15, 4);
 
   // Pools
   createPool(g, -5, y, 20, 30, 15);
@@ -162,19 +165,19 @@ export function createHotelResorts(arcs) {
   group.name = 'hotel-resorts';
 
   // Find good beach locations: near water, flat, facing ocean
-  const resortCount = 4;
+  const resortCount = 15;
   const placed = [];
 
-  for (let attempts = 0; attempts < 200 && placed.length < resortCount; attempts++) {
+  for (let attempts = 0; attempts < 500 && placed.length < resortCount; attempts++) {
     const angle = Math.random() * Math.PI * 2;
-    // Place on inner edge of island (40-55% from center = near coast)
-    const dist = WORLD_HALF * (0.35 + Math.random() * 0.2);
+    // Place across island — coast and inland valleys
+    const dist = WORLD_HALF * (0.15 + Math.random() * 0.45);
     const x = Math.cos(angle) * dist;
     const z = Math.sin(angle) * dist;
     const h = getTerrainHeight(x, z, arcs);
 
-    // Must be just above water level (beach area)
-    if (h < WATER_LEVEL + 2 || h > WATER_LEVEL + 15) continue;
+    // Must be on land, not too high (flat areas)
+    if (h < WATER_LEVEL + 2 || h > WATER_LEVEL + 40) continue;
 
     // Check slope
     const h2 = getTerrainHeight(x + 5, z, arcs);
@@ -185,7 +188,7 @@ export function createHotelResorts(arcs) {
     // Check distance to other resorts
     let tooClose = false;
     for (const p of placed) {
-      if (Math.sqrt((x - p.x) ** 2 + (z - p.z) ** 2) < 150) { tooClose = true; break; }
+      if (Math.sqrt((x - p.x) ** 2 + (z - p.z) ** 2) < 100) { tooClose = true; break; }
     }
     if (tooClose) continue;
 

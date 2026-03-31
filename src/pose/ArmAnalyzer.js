@@ -167,7 +167,7 @@ export class ArmAnalyzer {
     // === ROLL: elevation difference ===
     const elevDiff = rightElev - leftElev;
     const targetRoll = clamp(elevDiff * 2.5, -1, 1);
-    this.roll += (targetRoll - this.roll) * 0.15;
+    this.roll += (targetRoll - this.roll) * 0.06;
 
     // === PITCH: proportional to elevation (not binary) ===
     // avgElev > 0 = hands above shoulders, < 0 = below
@@ -183,7 +183,7 @@ export class ArmAnalyzer {
     } else {
       targetPitch = 0; // neutral zone ±0.02
     }
-    this.pitch += (targetPitch - this.pitch) * 0.15;
+    this.pitch += (targetPitch - this.pitch) * 0.06; // very gentle transitions
 
     // === WING SPREAD: proportional ===
     const recentlyFlapped = (now - this._lastFlapTime < 600);
@@ -193,7 +193,7 @@ export class ArmAnalyzer {
     } else {
       targetSpread = clamp(remap(avgElev, -0.1, 0.05, 0, 1), 0, 1);
     }
-    this.wingSpread += (targetSpread - this.wingSpread) * 0.15;
+    this.wingSpread += (targetSpread - this.wingSpread) * 0.08;
 
     // === GESTURE LABEL (with 300ms hold) ===
     let newGesture;
