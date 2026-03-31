@@ -348,12 +348,14 @@ export class UnderwaterWorld {
       const positions = [];
       const target = 800;
 
-      for (let a = 0; a < target * 3 && positions.length < target; a++) {
-        const pos = this._validOceanPos(0.85, 5); // fish: min 5m depth
-        if (pos) {
-          const y = randomRange(Math.max(pos.seabed + 1, WATER_LEVEL - 10), WATER_LEVEL - 1);
-          positions.push({ ...pos, y });
-        }
+      for (let a = 0; a < target * 4 && positions.length < target; a++) {
+        const pos = this._validOceanPos(0.85, 5);
+        if (!pos) continue;
+        // Depth bias: deeper water = higher chance of keeping this fish
+        const depthChance = Math.min(pos.depth / 15, 1); // full density at 15m+
+        if (Math.random() > depthChance) continue;
+        const y = randomRange(Math.max(pos.seabed + 1, WATER_LEVEL - pos.depth), WATER_LEVEL - 1);
+        positions.push({ ...pos, y });
       }
 
       for (const p of positions) {
@@ -418,9 +420,14 @@ export class UnderwaterWorld {
       return tex;
     });
 
-    for (let i = 0; i < 3000; i++) {
+    for (let i = 0; i < 4000; i++) {
       const pos = this._validWaterPos(0.75);
       if (!pos) continue;
+      // Depth bias: more coral in deeper water
+      const depth = WATER_LEVEL - pos.seabed;
+      if (depth < 3) continue; // skip very shallow
+      const depthChance = Math.min(depth / 12, 1);
+      if (Math.random() > depthChance) continue;
 
       const texIdx = Math.floor(Math.random() * coralTextures.length);
       const mat = new THREE.SpriteMaterial({

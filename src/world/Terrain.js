@@ -49,6 +49,20 @@ export function generateArcs(count = ARC_COUNT, seed = null) {
     });
   }
 
+  // Underwater canyon arcs — carve deep trenches into the seabed
+  // Placed in the ocean zone (outer ring of the world)
+  const canyonCount = 60;
+  for (let i = 0; i < canyonCount; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = WORLD_HALF * (0.55 + Math.random() * 0.35);
+    arcs.push({
+      cx: Math.cos(angle) * dist,
+      cz: Math.sin(angle) * dist,
+      radius: randomRange(30, 120),
+      height: randomRange(-40, -15), // deep negative = canyon
+    });
+  }
+
   return arcs;
 }
 
@@ -218,7 +232,7 @@ function saveWorldCache(arcs, cacheData, resolution) {
     localStorage.setItem('world_arcs', arcsJson);
     localStorage.setItem('world_heightmap', b64);
     localStorage.setItem('world_resolution', String(resolution));
-    localStorage.setItem('world_version', `${ARC_COUNT}_${WORLD_SIZE}_${ARC_MAX_RADIUS}_${ARC_MAX_HEIGHT}_v6`);
+    localStorage.setItem('world_version', `${ARC_COUNT}_${WORLD_SIZE}_${ARC_MAX_RADIUS}_${ARC_MAX_HEIGHT}_v7`);
     console.log('World cached to localStorage');
   } catch (e) {
     console.warn('Could not cache world:', e.message);
@@ -230,7 +244,7 @@ function saveWorldCache(arcs, cacheData, resolution) {
  */
 function loadWorldCache() {
   try {
-    const version = `${ARC_COUNT}_${WORLD_SIZE}_${ARC_MAX_RADIUS}_${ARC_MAX_HEIGHT}_v6`;
+    const version = `${ARC_COUNT}_${WORLD_SIZE}_${ARC_MAX_RADIUS}_${ARC_MAX_HEIGHT}_v7`;
     if (localStorage.getItem('world_version') !== version) return null;
 
     const arcsJson = localStorage.getItem('world_arcs');

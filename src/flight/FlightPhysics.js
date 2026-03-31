@@ -204,10 +204,14 @@ export class FlightPhysics {
       s.velocity.y += 3.0 * dt;
     }
 
-    // --- 11. Safety clamps ---
+    // --- 11. Speed limiting (progressive drag — no hard clamp) ---
     s.velocity.y = Math.max(s.velocity.y, TERMINAL_VELOCITY);
-    if (s.velocity.length() > MAX_SPEED) {
-      s.velocity.normalize().multiplyScalar(MAX_SPEED);
+    const currentSpeed = s.velocity.length();
+    if (currentSpeed > MAX_SPEED * 0.7) {
+      // Exponential drag above 70% max speed — impossible to exceed max
+      const ratio = currentSpeed / MAX_SPEED;
+      const excessDrag = Math.pow(ratio - 0.7, 2) * 30.0; // strong quadratic drag
+      s.velocity.multiplyScalar(1 - excessDrag * dt);
     }
 
     // --- 11. Integrate position ---

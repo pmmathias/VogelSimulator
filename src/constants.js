@@ -50,7 +50,7 @@ export const CD_PARASITIC = 0.025;       // zero-lift drag coefficient
 export const CD_INDUCED_K = 0.08;        // induced drag factor (K in CD = CD0 + K·CL²)
 
 // Flapping
-export const FLAP_THRUST = 150;          // Newtons peak thrust per flap
+export const FLAP_THRUST = 60;           // Newtons peak thrust per flap
 export const FLAP_DURATION = 0.3;        // seconds for one downstroke
 export const FLAP_COOLDOWN = 0.25;       // minimum seconds between flaps
 export const FLAP_LIFT_BONUS = 0.6;      // extra CL added during downstroke
