@@ -4,6 +4,7 @@ import { createWaterPlane } from './WaterPlane.js';
 import { createCloudLayer } from './CloudPlane.js';
 import { createForest } from './ForestPlacer.js';
 import { createHouses } from './HousePlacer.js';
+import { createHotelResorts } from './HotelResort.js';
 import { UnderwaterWorld } from './Underwater.js';
 import { Octree } from '../spatial/Octree.js';
 import { FrustumCuller } from '../spatial/FrustumCuller.js';
@@ -87,6 +88,10 @@ export function buildWorld(scene) {
   });
   console.log(`Total buildings: ${totalBuildings}`);
   console.timeEnd('Houses');
+
+  // --- Hotel Resorts (beach areas) ---
+  const resorts = createHotelResorts(arcs);
+  scene.add(resorts);
 
   // --- Forest (placed AFTER houses, excludes tree positions near buildings) ---
   console.time('Forest');
