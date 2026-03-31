@@ -193,9 +193,9 @@ export class ArmAnalyzer {
     let newGesture;
     if (this._diveActive) newGesture = 'DIVE';
     else if (isFlapping) newGesture = 'FLAP!';
-    else if (this.pitch > 0.05) newGesture = 'CLIMB';
-    else if (this.pitch < -0.05) newGesture = 'DIVE';
-    else if (Math.abs(this.roll) > 0.08) newGesture = this.roll > 0 ? 'TURN LEFT' : 'TURN RIGHT';
+    else if (this.pitch > 0.15) newGesture = 'CLIMB';
+    else if (this.pitch < -0.15) newGesture = 'DIVE';
+    else if (Math.abs(this.roll) > 0.12) newGesture = this.roll > 0 ? 'TURN LEFT' : 'TURN RIGHT';
     else newGesture = 'GLIDE';
 
     if (newGesture !== this._lastGesture) {
