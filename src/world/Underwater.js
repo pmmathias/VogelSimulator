@@ -250,6 +250,26 @@ export class UnderwaterWorld {
     document.body.appendChild(this._overlay);
   }
 
+  /**
+   * Find a valid ocean position (not inland ponds).
+   * Ocean = terrain well below water AND near island edge (dist from center > 40% world)
+   * or terrain very deep (seabed < WATER_LEVEL - 8, clearly ocean not puddle)
+   */
+  _validOceanPos(spread = 0.85) {
+    for (let i = 0; i < 80; i++) {
+      const x = randomRange(-WORLD_HALF * spread, WORLD_HALF * spread);
+      const z = randomRange(-WORLD_HALF * spread, WORLD_HALF * spread);
+      const h = getTerrainHeight(x, z, this._arcs);
+      if (h >= WATER_LEVEL - 2) continue; // not underwater
+
+      const distFromCenter = Math.sqrt(x * x + z * z);
+      const isOcean = distFromCenter > WORLD_HALF * 0.4 || h < WATER_LEVEL - 8;
+      if (isOcean) return { x, z, seabed: h };
+    }
+    return null;
+  }
+
+  /** Valid water pos including ponds (for coral only) */
   _validWaterPos(spread = 0.85) {
     for (let i = 0; i < 50; i++) {
       const x = randomRange(-WORLD_HALF * spread, WORLD_HALF * spread);
@@ -280,7 +300,7 @@ export class UnderwaterWorld {
       const target = 800;
 
       for (let a = 0; a < target * 3 && positions.length < target; a++) {
-        const pos = this._validWaterPos();
+        const pos = this._validOceanPos(); // fish only in ocean, not ponds
         if (pos) {
           const y = randomRange(Math.max(pos.seabed + 1, WATER_LEVEL - 10), WATER_LEVEL - 1);
           positions.push({ ...pos, y });
@@ -306,7 +326,7 @@ export class UnderwaterWorld {
     const sharkTex = new THREE.CanvasTexture(genShark());
     sharkTex.colorSpace = THREE.SRGBColorSpace;
     for (let i = 0; i < 8; i++) {
-      const pos = this._validWaterPos(0.7);
+      const pos = this._validOceanPos(0.7); // sharks only in ocean
       if (!pos) continue;
       const mat = new THREE.SpriteMaterial({ map: sharkTex, transparent: true, fog: false });
       const sprite = new THREE.Sprite(mat);
@@ -325,7 +345,7 @@ export class UnderwaterWorld {
       tex.colorSpace = THREE.SRGBColorSpace;
       const count = type === 'humpback' ? 3 : 2;
       for (let i = 0; i < count; i++) {
-        const pos = this._validWaterPos(0.6);
+        const pos = this._validOceanPos(0.6); // whales only in ocean
         if (!pos) continue;
         const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, fog: false });
         const sprite = new THREE.Sprite(mat);
