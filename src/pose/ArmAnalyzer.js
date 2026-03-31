@@ -191,10 +191,7 @@ export class ArmAnalyzer {
     if (recentlyFlapped) {
       targetSpread = 1.0;
     } else {
-      // Smooth 0→1 based on elevation: hands down=0, hands up=1
       targetSpread = clamp(remap(avgElev, -0.1, 0.05, 0, 1), 0, 1);
-    } else {
-      targetSpread = clamp(remap(avgElev, -0.05, 0.08, 0, 1), 0, 1);
     }
     this.wingSpread += (targetSpread - this.wingSpread) * 0.15;
 
