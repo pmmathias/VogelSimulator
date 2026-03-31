@@ -5,10 +5,10 @@
 
 // Gesture definitions with stick figure drawing functions
 const GESTURES = [
-  { id: 'FLAP!', label: 'Flap', desc: 'Arms up & down', color: '#ffdd00' },
-  { id: 'GLIDE', label: 'Glide', desc: 'Arms spread', color: '#66ccff' },
-  { id: 'DIVE', label: 'Dive', desc: 'Duck down!', color: '#ff4444' },
-  { id: 'CLIMB', label: 'Climb', desc: 'Lean back', color: '#44ff88' },
+  { id: 'FLAP!', label: 'Flap', desc: 'Hands up+down', color: '#ffdd00' },
+  { id: 'GLIDE', label: 'Glide', desc: 'Hands above', color: '#66ccff' },
+  { id: 'DIVE', label: 'Dive', desc: 'Hands below', color: '#ff4444' },
+  { id: 'CLIMB', label: 'Climb', desc: 'Arms high', color: '#44ff88' },
   { id: 'TURN LEFT', label: 'Turn L', desc: 'Left arm up', color: '#ff88ff' },
   { id: 'TURN RIGHT', label: 'Turn R', desc: 'Right arm up', color: '#ffaa44' },
 ];
