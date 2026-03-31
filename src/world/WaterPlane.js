@@ -68,11 +68,28 @@ export function createWaterPlane(sun) {
 
   water.rotation.x = -Math.PI / 2;
   water.position.y = WATER_LEVEL;
-  water.material.side = THREE.DoubleSide; // visible from underwater too
+
+  // Separate underside plane (simple, pretty from below)
+  const underGeo = new THREE.PlaneGeometry(WORLD_SIZE * 4, WORLD_SIZE * 4);
+  const underMat = new THREE.MeshBasicMaterial({
+    color: 0x1a5a7a,
+    transparent: true,
+    opacity: 0.6,
+    side: THREE.BackSide, // only visible from below
+    depthWrite: false,
+  });
+  const underside = new THREE.Mesh(underGeo, underMat);
+  underside.rotation.x = -Math.PI / 2;
+  underside.position.y = WATER_LEVEL - 0.1; // just below water surface
 
   function update(dt) {
     water.material.uniforms.time.value += dt;
   }
 
-  return { mesh: water, update };
+  // Group water surface + underside together
+  const waterGroup = new THREE.Group();
+  waterGroup.add(water);
+  waterGroup.add(underside);
+
+  return { mesh: waterGroup, update };
 }
