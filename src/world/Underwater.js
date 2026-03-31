@@ -3,9 +3,221 @@ import { randomRange } from '../utils/math.js';
 import { getTerrainHeight } from './Terrain.js';
 import { WORLD_HALF, WATER_LEVEL } from '../constants.js';
 
-/**
- * Underwater world: fish, coral, and visual effects when below water surface.
- */
+// === PROCEDURAL TEXTURE GENERATORS ===
+
+function createCanvas(w, h) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  return { canvas: c, ctx: c.getContext('2d') };
+}
+
+/** Colorful tropical fish */
+function genTropicalFish(hue) {
+  const { canvas, ctx } = createCanvas(128, 64);
+  // Body
+  const bodyGrad = ctx.createLinearGradient(20, 10, 20, 54);
+  bodyGrad.addColorStop(0, `hsl(${hue}, 80%, 65%)`);
+  bodyGrad.addColorStop(0.5, `hsl(${hue}, 90%, 50%)`);
+  bodyGrad.addColorStop(1, `hsl(${hue + 20}, 70%, 40%)`);
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  ctx.ellipse(55, 32, 35, 18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Stripes (glittering effect)
+  for (let i = 0; i < 5; i++) {
+    const sx = 30 + i * 12;
+    ctx.strokeStyle = `hsla(${hue + 40}, 100%, 80%, 0.4)`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(sx, 18); ctx.lineTo(sx + 3, 46);
+    ctx.stroke();
+  }
+  // Tail
+  ctx.fillStyle = `hsl(${hue + 10}, 85%, 55%)`;
+  ctx.beginPath();
+  ctx.moveTo(90, 32); ctx.lineTo(120, 12); ctx.lineTo(120, 52); ctx.closePath();
+  ctx.fill();
+  // Fins
+  ctx.fillStyle = `hsla(${hue - 10}, 70%, 60%, 0.7)`;
+  ctx.beginPath();
+  ctx.ellipse(50, 14, 15, 8, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+  // Eye
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(30, 28, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(31, 28, 2.5, 0, Math.PI * 2); ctx.fill();
+  // Glitter spots
+  for (let i = 0; i < 8; i++) {
+    ctx.fillStyle = `hsla(${hue + 60}, 100%, 90%, ${0.3 + Math.random() * 0.4})`;
+    ctx.beginPath();
+    ctx.arc(35 + Math.random() * 40, 20 + Math.random() * 24, 1 + Math.random() * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return canvas;
+}
+
+/** Shark silhouette */
+function genShark() {
+  const { canvas, ctx } = createCanvas(192, 64);
+  // Body
+  const grad = ctx.createLinearGradient(0, 10, 0, 54);
+  grad.addColorStop(0, '#556677');
+  grad.addColorStop(0.6, '#445566');
+  grad.addColorStop(1, '#e8e8e8');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(10, 32);
+  ctx.quadraticCurveTo(50, 10, 120, 20);
+  ctx.lineTo(165, 30);
+  ctx.lineTo(185, 15); ctx.lineTo(180, 35);
+  ctx.lineTo(185, 55); ctx.lineTo(165, 38);
+  ctx.lineTo(120, 44);
+  ctx.quadraticCurveTo(50, 54, 10, 32);
+  ctx.fill();
+  // Dorsal fin
+  ctx.fillStyle = '#445566';
+  ctx.beginPath();
+  ctx.moveTo(80, 20); ctx.lineTo(95, 2); ctx.lineTo(110, 20); ctx.closePath();
+  ctx.fill();
+  // Eye
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(28, 30, 3, 0, Math.PI * 2); ctx.fill();
+  // Gill slits
+  ctx.strokeStyle = '#334455';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath(); ctx.moveTo(42 + i * 5, 26); ctx.lineTo(42 + i * 5, 38); ctx.stroke();
+  }
+  return canvas;
+}
+
+/** Whale (large, majestic) */
+function genWhale(type) {
+  const { canvas, ctx } = createCanvas(256, 96);
+  const isHumpback = type === 'humpback';
+  // Body
+  const grad = ctx.createLinearGradient(0, 10, 0, 86);
+  grad.addColorStop(0, isHumpback ? '#3a4a5a' : '#2a3a4a');
+  grad.addColorStop(0.7, isHumpback ? '#4a5a6a' : '#3a4a5a');
+  grad.addColorStop(1, '#8a9aaa');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(15, 48);
+  ctx.quadraticCurveTo(60, 12, 160, 25);
+  ctx.quadraticCurveTo(200, 35, 220, 40);
+  ctx.lineTo(250, 25); ctx.lineTo(245, 48); ctx.lineTo(250, 70);
+  ctx.lineTo(220, 55);
+  ctx.quadraticCurveTo(200, 60, 160, 70);
+  ctx.quadraticCurveTo(60, 82, 15, 48);
+  ctx.fill();
+  // Belly
+  ctx.fillStyle = isHumpback ? '#8a9aaa' : '#7a8a9a';
+  ctx.beginPath();
+  ctx.ellipse(100, 65, 70, 15, 0, 0, Math.PI);
+  ctx.fill();
+  // Eye
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(35, 44, 3, 0, Math.PI * 2); ctx.fill();
+  // Humpback: bumps on head
+  if (isHumpback) {
+    for (let i = 0; i < 6; i++) {
+      ctx.fillStyle = '#4a5a6a';
+      ctx.beginPath();
+      ctx.arc(20 + i * 8, 35 + Math.random() * 8, 2 + Math.random() * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // Pectoral fin
+  ctx.fillStyle = isHumpback ? '#3a4a5a' : '#2a3a4a';
+  ctx.beginPath();
+  ctx.ellipse(80, 68, isHumpback ? 35 : 20, 8, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  return canvas;
+}
+
+/** Spongebob-style coral — colorful, cartoonish */
+function genCoral(type) {
+  const { canvas, ctx } = createCanvas(64, 96);
+  const colors = {
+    pink: ['#ff69b4', '#ff1493', '#ff85c8'],
+    green: ['#32cd32', '#228b22', '#7cfc00'],
+    orange: ['#ff8c00', '#ff6347', '#ffa500'],
+    purple: ['#9370db', '#8a2be2', '#ba55d3'],
+    red: ['#dc143c', '#b22222', '#ff4444'],
+  };
+  const palette = colors[type] || colors.pink;
+
+  if (type === 'pink' || type === 'red') {
+    // Branching coral
+    const cx = 32;
+    ctx.strokeStyle = palette[1];
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    // Main stem
+    ctx.beginPath(); ctx.moveTo(cx, 90); ctx.lineTo(cx, 40); ctx.stroke();
+    // Branches
+    const branches = [[cx, 40, cx - 15, 20], [cx, 40, cx + 18, 15],
+      [cx, 55, cx - 20, 38], [cx, 55, cx + 16, 42],
+      [cx, 65, cx - 12, 55], [cx, 65, cx + 14, 50]];
+    for (const [x1, y1, x2, y2] of branches) {
+      ctx.strokeStyle = palette[Math.floor(Math.random() * palette.length)];
+      ctx.lineWidth = 2 + Math.random() * 2;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      // Bulb at tip
+      ctx.fillStyle = palette[0];
+      ctx.beginPath(); ctx.arc(x2, y2, 3 + Math.random() * 3, 0, Math.PI * 2); ctx.fill();
+    }
+  } else if (type === 'green') {
+    // Seaweed / kelp
+    ctx.strokeStyle = palette[0];
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    for (let s = 0; s < 3; s++) {
+      const sx = 15 + s * 17;
+      ctx.strokeStyle = palette[s % palette.length];
+      ctx.lineWidth = 2 + Math.random() * 2;
+      ctx.beginPath();
+      ctx.moveTo(sx, 90);
+      for (let y = 85; y > 10; y -= 10) {
+        ctx.lineTo(sx + Math.sin(y * 0.1 + s) * 8, y);
+      }
+      ctx.stroke();
+      // Leaves
+      for (let y = 70; y > 15; y -= 15) {
+        ctx.fillStyle = palette[1];
+        ctx.beginPath();
+        ctx.ellipse(sx + Math.sin(y * 0.1 + s) * 6, y, 5, 3, Math.sin(y) * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else {
+    // Tube/mushroom coral
+    const cx = 32;
+    // Stem
+    ctx.fillStyle = palette[1];
+    ctx.fillRect(cx - 5, 50, 10, 40);
+    // Cap
+    const capGrad = ctx.createRadialGradient(cx, 40, 0, cx, 40, 25);
+    capGrad.addColorStop(0, palette[0]);
+    capGrad.addColorStop(1, palette[2]);
+    ctx.fillStyle = capGrad;
+    ctx.beginPath();
+    ctx.ellipse(cx, 40, 25, 18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Spots
+    for (let i = 0; i < 6; i++) {
+      ctx.fillStyle = `rgba(255,255,255,0.3)`;
+      ctx.beginPath();
+      ctx.arc(cx + (Math.random() - 0.5) * 30, 35 + Math.random() * 15, 2 + Math.random() * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  return canvas;
+}
+
+// === UNDERWATER WORLD ===
+
 export class UnderwaterWorld {
   constructor(scene, arcs) {
     this.scene = scene;
@@ -22,6 +234,7 @@ export class UnderwaterWorld {
 
     this._createOverlay();
     this._createFish();
+    this._createWhalesAndSharks();
     this._createCoral();
   }
 
@@ -29,142 +242,129 @@ export class UnderwaterWorld {
     this._overlay = document.createElement('div');
     this._overlay.style.cssText = `
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(10, 40, 80, 0.35);
+      background: linear-gradient(180deg, rgba(5,20,50,0.5) 0%, rgba(10,40,80,0.35) 50%, rgba(5,30,60,0.5) 100%);
       pointer-events: none; z-index: 50;
-      transition: opacity 0.3s;
+      transition: opacity 0.5s;
       opacity: 0;
     `;
     document.body.appendChild(this._overlay);
   }
 
-  _createFish() {
-    // Fish texture
-    const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 32;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, 64, 32);
-    ctx.fillStyle = '#c0c8d8';
-    ctx.beginPath();
-    ctx.ellipse(28, 16, 18, 8, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#a0a8b8';
-    ctx.beginPath();
-    ctx.moveTo(46, 16);
-    ctx.lineTo(62, 6);
-    ctx.lineTo(62, 26);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#222';
-    ctx.beginPath();
-    ctx.arc(18, 13, 2, 0, Math.PI * 2);
-    ctx.fill();
+  _validWaterPos(spread = 0.85) {
+    for (let i = 0; i < 50; i++) {
+      const x = randomRange(-WORLD_HALF * spread, WORLD_HALF * spread);
+      const z = randomRange(-WORLD_HALF * spread, WORLD_HALF * spread);
+      const h = getTerrainHeight(x, z, this._arcs);
+      if (h < WATER_LEVEL - 2) return { x, z, seabed: h };
+    }
+    return null;
+  }
 
-    const fishTex = new THREE.CanvasTexture(canvas);
-    const fishGeo = new THREE.PlaneGeometry(1, 0.5);
-    const fishMat = new THREE.MeshBasicMaterial({
-      map: fishTex,
-      transparent: true,
-      alphaTest: 0.1,
-      side: THREE.DoubleSide,
-      fog: false,
+  _createFish() {
+    // Generate 6 fish species with different colors
+    const fishHues = [0, 30, 60, 180, 210, 300]; // red, orange, yellow, cyan, blue, magenta
+    const fishTextures = fishHues.map(hue => {
+      const tex = new THREE.CanvasTexture(genTropicalFish(hue));
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
     });
 
-    const FISH_TARGET = 5000;
-    // Pre-generate valid positions (only over water, not under terrain)
-    const fishPositions = [];
-    for (let attempts = 0; attempts < FISH_TARGET * 3 && fishPositions.length < FISH_TARGET; attempts++) {
-      const x = randomRange(-WORLD_HALF * 0.85, WORLD_HALF * 0.85);
-      const z = randomRange(-WORLD_HALF * 0.85, WORLD_HALF * 0.85);
-      const terrainH = getTerrainHeight(x, z, this._arcs);
-      if (terrainH < WATER_LEVEL - 2) { // only in water areas
-        const y = randomRange(Math.max(terrainH + 1, WATER_LEVEL - 12), WATER_LEVEL - 1);
-        fishPositions.push({ x, y, z });
+    const fishGeo = new THREE.PlaneGeometry(1, 0.5);
+    this._fishData = [];
+    this._fishMeshes = [];
+
+    // Create instanced mesh per species
+    for (let s = 0; s < fishTextures.length; s++) {
+      const mat = new THREE.SpriteMaterial({ map: fishTextures[s], transparent: true, fog: false });
+      const positions = [];
+      const target = 800;
+
+      for (let a = 0; a < target * 3 && positions.length < target; a++) {
+        const pos = this._validWaterPos();
+        if (pos) {
+          const y = randomRange(Math.max(pos.seabed + 1, WATER_LEVEL - 10), WATER_LEVEL - 1);
+          positions.push({ ...pos, y });
+        }
+      }
+
+      for (const p of positions) {
+        const sprite = new THREE.Sprite(mat);
+        const scale = 1 + Math.random() * 2.5;
+        sprite.scale.set(scale * 2, scale, 1);
+        sprite.position.set(p.x, p.y, p.z);
+        this.group.add(sprite);
+        this._fishData.push({
+          obj: sprite, speed: 2 + Math.random() * 5,
+          dir: Math.random() * Math.PI * 2, wobble: Math.random() * 6,
+        });
       }
     }
+  }
 
-    const FISH_COUNT = fishPositions.length;
-    const fishMesh = new THREE.InstancedMesh(fishGeo, fishMat, FISH_COUNT);
-    fishMesh.name = 'fish';
-    fishMesh.frustumCulled = false;
-
-    this._fishData = [];
-    const dummy = new THREE.Object3D();
-    const color = new THREE.Color();
-
-    for (let i = 0; i < FISH_COUNT; i++) {
-      const { x, y, z } = fishPositions[i];
-      const scale = 1 + Math.random() * 3;
-      const dir = Math.random() * Math.PI * 2;
-
-      dummy.position.set(x, y, z);
-      dummy.rotation.set(0, dir, 0);
-      dummy.scale.set(scale, scale, scale);
-      dummy.updateMatrix();
-      fishMesh.setMatrixAt(i, dummy.matrix);
-
-      // Color variation
-      color.setHSL(0.55 + Math.random() * 0.15, 0.3 + Math.random() * 0.4, 0.5 + Math.random() * 0.3);
-      fishMesh.setColorAt(i, color);
-
-      this._fishData.push({ x, y, z, dir, speed: 2 + Math.random() * 5, wobble: Math.random() * 6 });
+  _createWhalesAndSharks() {
+    // Sharks
+    const sharkTex = new THREE.CanvasTexture(genShark());
+    sharkTex.colorSpace = THREE.SRGBColorSpace;
+    for (let i = 0; i < 8; i++) {
+      const pos = this._validWaterPos(0.7);
+      if (!pos) continue;
+      const mat = new THREE.SpriteMaterial({ map: sharkTex, transparent: true, fog: false });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(12, 4, 1);
+      sprite.position.set(pos.x, randomRange(WATER_LEVEL - 10, WATER_LEVEL - 3), pos.z);
+      this.group.add(sprite);
+      this._fishData.push({
+        obj: sprite, speed: 3 + Math.random() * 3,
+        dir: Math.random() * Math.PI * 2, wobble: Math.random() * 6,
+      });
     }
 
-    fishMesh.instanceMatrix.needsUpdate = true;
-    fishMesh.instanceColor.needsUpdate = true;
-    this._fishMesh = fishMesh;
-    this.group.add(fishMesh);
+    // Whales
+    for (const type of ['humpback', 'sperm']) {
+      const tex = new THREE.CanvasTexture(genWhale(type));
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const count = type === 'humpback' ? 3 : 2;
+      for (let i = 0; i < count; i++) {
+        const pos = this._validWaterPos(0.6);
+        if (!pos) continue;
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, fog: false });
+        const sprite = new THREE.Sprite(mat);
+        const scale = type === 'humpback' ? 25 : 20;
+        sprite.scale.set(scale, scale * 0.375, 1);
+        sprite.position.set(pos.x, randomRange(WATER_LEVEL - 12, WATER_LEVEL - 5), pos.z);
+        this.group.add(sprite);
+        this._fishData.push({
+          obj: sprite, speed: 1 + Math.random() * 1.5,
+          dir: Math.random() * Math.PI * 2, wobble: Math.random() * 6,
+        });
+      }
+    }
   }
 
   _createCoral() {
-    const coralColors = [
-      0xff6644, 0xff8866, 0xee5533, 0xffaa77,
-      0x44cc88, 0x55ddaa, 0x33bb77,
-      0xcc66cc, 0xdd88dd, 0xff4488,
-    ];
+    const coralTypes = ['pink', 'green', 'orange', 'purple', 'red'];
+    const coralTextures = coralTypes.map(type => {
+      const tex = new THREE.CanvasTexture(genCoral(type));
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    });
 
-    const CORAL_TARGET = 5000;
-    const coralGeo = new THREE.ConeGeometry(0.5, 1, 5);
-    coralGeo.translate(0, 0.5, 0);
-    const coralMat = new THREE.MeshLambertMaterial({ fog: false });
+    for (let i = 0; i < 3000; i++) {
+      const pos = this._validWaterPos(0.75);
+      if (!pos) continue;
 
-    // Pre-generate valid coral positions
-    const coralPositions = [];
-    for (let attempts = 0; attempts < CORAL_TARGET * 3 && coralPositions.length < CORAL_TARGET; attempts++) {
-      const x = randomRange(-WORLD_HALF * 0.75, WORLD_HALF * 0.75);
-      const z = randomRange(-WORLD_HALF * 0.75, WORLD_HALF * 0.75);
-      const terrainH = getTerrainHeight(x, z, this._arcs);
-      if (terrainH < WATER_LEVEL - 3) { // only on underwater seabed
-        const y = terrainH + 0.5; // sit on actual seabed
-        coralPositions.push({ x, y, z });
-      }
+      const texIdx = Math.floor(Math.random() * coralTextures.length);
+      const mat = new THREE.SpriteMaterial({
+        map: coralTextures[texIdx],
+        transparent: true,
+        fog: false,
+      });
+      const sprite = new THREE.Sprite(mat);
+      const scale = 2 + Math.random() * 5;
+      sprite.scale.set(scale * 0.7, scale, 1);
+      sprite.position.set(pos.x, pos.seabed + scale * 0.4, pos.z);
+      this.group.add(sprite);
     }
-
-    const CORAL_COUNT = coralPositions.length;
-    const coralMesh = new THREE.InstancedMesh(coralGeo, coralMat, CORAL_COUNT);
-    coralMesh.name = 'coral';
-    coralMesh.frustumCulled = false;
-
-    const dummy = new THREE.Object3D();
-    const color = new THREE.Color();
-
-    for (let i = 0; i < CORAL_COUNT; i++) {
-      const { x, y, z } = coralPositions[i];
-      const scale = 0.5 + Math.random() * 3;
-
-      dummy.position.set(x, y, z);
-      dummy.scale.set(scale * 0.5, scale, scale * 0.5);
-      dummy.rotation.set(0, Math.random() * Math.PI, (Math.random() - 0.5) * 0.3);
-      dummy.updateMatrix();
-      coralMesh.setMatrixAt(i, dummy.matrix);
-
-      color.set(coralColors[Math.floor(Math.random() * coralColors.length)]);
-      coralMesh.setColorAt(i, color);
-    }
-
-    coralMesh.instanceMatrix.needsUpdate = true;
-    coralMesh.instanceColor.needsUpdate = true;
-    this.group.add(coralMesh);
   }
 
   update(dt, birdAltitude) {
@@ -178,9 +378,9 @@ export class UnderwaterWorld {
           this._originalFogColor = this.scene.fog.color.clone();
           this._originalFogNear = this.scene.fog.near;
           this._originalFogFar = this.scene.fog.far;
-          this.scene.fog.color.set(0x0a2850);
-          this.scene.fog.near = 10;
-          this.scene.fog.far = 120;
+          this.scene.fog.color.set(0x051430);
+          this.scene.fog.near = 5;
+          this.scene.fog.far = 80;
         } else {
           this.scene.fog.color.copy(this._originalFogColor);
           this.scene.fog.near = this._originalFogNear;
@@ -189,33 +389,21 @@ export class UnderwaterWorld {
       }
     }
 
-    // Animate fish (only update a subset each frame for performance)
-    if (this._fishMesh && this._isUnderwater) {
-      const dummy = new THREE.Object3D();
-      const batchSize = 500; // update 500 fish per frame
-      const offset = (Math.floor(performance.now() / 16) * batchSize) % this._fishData.length;
-
-      for (let i = offset; i < Math.min(offset + batchSize, this._fishData.length); i++) {
-        const f = this._fishData[i];
+    // Animate fish, sharks, whales
+    if (this._isUnderwater) {
+      const lim = WORLD_HALF * 0.85;
+      for (const f of this._fishData) {
         f.wobble += dt * 2;
-        f.x += Math.cos(f.dir) * f.speed * dt;
-        f.z += Math.sin(f.dir) * f.speed * dt;
-        f.y = f.y + Math.sin(f.wobble) * 0.3 * dt;
-        if (Math.random() < 0.002) f.dir += (Math.random() - 0.5) * 0.5;
-
-        // Wrap
-        const lim = WORLD_HALF * 0.85;
-        if (f.x > lim) f.x = -lim;
-        if (f.x < -lim) f.x = lim;
-        if (f.z > lim) f.z = -lim;
-        if (f.z < -lim) f.z = lim;
-
-        dummy.position.set(f.x, f.y, f.z);
-        dummy.rotation.set(0, f.dir, 0);
-        dummy.updateMatrix();
-        this._fishMesh.setMatrixAt(i, dummy.matrix);
+        const obj = f.obj;
+        obj.position.x += Math.cos(f.dir) * f.speed * dt;
+        obj.position.z += Math.sin(f.dir) * f.speed * dt;
+        obj.position.y += Math.sin(f.wobble) * 0.3 * dt;
+        if (Math.random() < 0.003) f.dir += (Math.random() - 0.5) * 0.5;
+        if (obj.position.x > lim) obj.position.x = -lim;
+        if (obj.position.x < -lim) obj.position.x = lim;
+        if (obj.position.z > lim) obj.position.z = -lim;
+        if (obj.position.z < -lim) obj.position.z = lim;
       }
-      this._fishMesh.instanceMatrix.needsUpdate = true;
     }
   }
 }
