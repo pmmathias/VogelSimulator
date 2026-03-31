@@ -145,16 +145,23 @@ export class ArmAnalyzer {
     const duckAmount = noseY - this.restNoseY;
     const isDucking = duckAmount > 0.05;
 
-    // Method B: arms below shoulders (negative elevation = arms hanging down)
-    const armsDown = avgElev < -0.02;
+    // Method B: arms clearly below shoulders (not just slightly)
+    const armsDown = avgElev < -0.08; // needs significant arm drop
 
     // Either method triggers dive (when not flapping)
     const wantsDive = (isDucking || armsDown) && this.flapStrength < 0.1;
 
+    // Hysteresis: need 8 frames of dive intent to enter, quick exit
+    if (!this._diveCounter) this._diveCounter = 0;
     if (wantsDive) {
+      this._diveCounter = Math.min(this._diveCounter + 1, 15);
+    } else {
+      this._diveCounter = Math.max(this._diveCounter - 2, 0);
+    }
+
+    if (this._diveCounter >= 8 && !this._diveActive) {
       this._diveActive = true;
-    } else if (this._diveActive && !isDucking && avgElev > 0.05) {
-      // Exit dive only when arms clearly raised back up AND not ducking
+    } else if (this._diveActive && this._diveCounter < 3) {
       this._diveActive = false;
     }
 
