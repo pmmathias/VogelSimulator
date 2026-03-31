@@ -198,10 +198,14 @@ export class FlightPhysics {
 
     // --- 10. Underwater physics ---
     if (s.altitude < 15) { // WATER_LEVEL = 15
-      // Strong water drag — slow down rapidly
-      s.velocity.multiplyScalar(1 - 2.0 * dt);
-      // Buoyancy — gentle push upward
-      s.velocity.y += 3.0 * dt;
+      // Water drag (moderate — still allows flap to work)
+      s.velocity.multiplyScalar(1 - 1.0 * dt);
+      // Strong buoyancy — bird naturally floats up
+      s.velocity.y += 8.0 * dt;
+      // Flap works extra well underwater (like swimming upward)
+      if (s.flapPhase > 0) {
+        s.velocity.y += 15.0 * dt;
+      }
     }
 
     // --- 11. Speed limiting (progressive drag — no hard clamp) ---
