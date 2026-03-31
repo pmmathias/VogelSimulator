@@ -227,7 +227,7 @@ export class FlightPhysics {
   enforceGround(terrainHeight) {
     // Underwater: allow diving but enforce seabed collision (max 30m below water)
     if (terrainHeight < 14) {
-      const seabed = Math.max(terrainHeight - 20, -40) + 1.0; // allow canyon depth
+      const seabed = Math.max(terrainHeight, -80) + 1.0; // allow deep canyons
       if (this.state.position.y < seabed) {
         this.state.position.y = seabed;
         if (this.state.velocity.y < 0) this.state.velocity.y = 0;

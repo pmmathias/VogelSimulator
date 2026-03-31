@@ -349,10 +349,10 @@ export class UnderwaterWorld {
       const target = 800;
 
       for (let a = 0; a < target * 4 && positions.length < target; a++) {
-        const pos = this._validOceanPos(0.85, 5);
+        const pos = this._validOceanPos(0.85, 15); // fish only in deep ocean
         if (!pos) continue;
-        // Depth bias: deeper water = higher chance of keeping this fish
-        const depthChance = Math.min(pos.depth / 15, 1); // full density at 15m+
+        // Depth bias: deeper = more fish (quadratic)
+        const depthChance = Math.pow(Math.min(pos.depth / 30, 1), 2);
         if (Math.random() > depthChance) continue;
         const y = randomRange(Math.max(pos.seabed + 1, WATER_LEVEL - pos.depth), WATER_LEVEL - 1);
         positions.push({ ...pos, y });
@@ -377,7 +377,7 @@ export class UnderwaterWorld {
     const sharkTex = new THREE.CanvasTexture(genShark());
     sharkTex.colorSpace = THREE.SRGBColorSpace;
     for (let i = 0; i < 8; i++) {
-      const pos = this._validOceanPos(0.7, 8); // sharks: min 8m depth
+      const pos = this._validOceanPos(0.7, 20); // sharks: deep water only
       if (!pos) continue;
       const mat = new THREE.SpriteMaterial({ map: sharkTex, transparent: true, fog: false });
       const sprite = new THREE.Sprite(mat);
@@ -396,7 +396,7 @@ export class UnderwaterWorld {
       tex.colorSpace = THREE.SRGBColorSpace;
       const count = type === 'humpback' ? 3 : 2;
       for (let i = 0; i < count; i++) {
-        const pos = this._validOceanPos(0.6, 10); // whales: min 10m depth
+        const pos = this._validOceanPos(0.6, 30); // whales: deep ocean only
         if (!pos) continue;
         const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, fog: false });
         const sprite = new THREE.Sprite(mat);
