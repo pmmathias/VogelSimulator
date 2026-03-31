@@ -125,8 +125,8 @@ export class ArmAnalyzer {
     const wasAbove = this._handsAbove;
     this._handsAbove = bothAbove;
 
-    if (bothAbove !== wasAbove && !bothAbove !== wasAbove) {
-      // State changed!
+    if (bothAbove !== wasAbove) {
+      // Hands crossed the shoulder line!
       this._stateChanges.push(now);
     }
 
