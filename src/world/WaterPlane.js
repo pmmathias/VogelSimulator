@@ -69,27 +69,29 @@ export function createWaterPlane(sun) {
   water.rotation.x = -Math.PI / 2;
   water.position.y = WATER_LEVEL;
 
-  // Separate underside plane (simple, pretty from below)
-  const underGeo = new THREE.PlaneGeometry(WORLD_SIZE * 4, WORLD_SIZE * 4);
-  const underMat = new THREE.MeshBasicMaterial({
-    color: 0x1a5a7a,
-    transparent: true,
-    opacity: 0.6,
-    side: THREE.BackSide, // only visible from below
-    depthWrite: false,
+  // Second Water plane flipped — same shader, viewed from below
+  const underWater = new Water(new THREE.PlaneGeometry(WORLD_SIZE * 4, WORLD_SIZE * 4), {
+    textureWidth: 512,
+    textureHeight: 512,
+    waterNormals: water.material.uniforms.normalSampler.value,
+    sunDirection: new THREE.Vector3().copy(sun.position).normalize(),
+    sunColor: 0xffffff,
+    waterColor: 0x001e0f,
+    distortionScale: 3.7,
+    fog: false,
   });
-  const underside = new THREE.Mesh(underGeo, underMat);
-  underside.rotation.x = -Math.PI / 2;
-  underside.position.y = WATER_LEVEL - 0.1; // just below water surface
-
-  function update(dt) {
-    water.material.uniforms.time.value += dt;
-  }
+  underWater.rotation.x = Math.PI / 2; // flipped (facing up = visible from below)
+  underWater.position.y = WATER_LEVEL - 0.05;
 
   // Group water surface + underside together
   const waterGroup = new THREE.Group();
   waterGroup.add(water);
-  waterGroup.add(underside);
+  waterGroup.add(underWater);
+
+  function update(dt) {
+    water.material.uniforms.time.value += dt;
+    underWater.material.uniforms.time.value += dt;
+  }
 
   return { mesh: waterGroup, update };
 }
