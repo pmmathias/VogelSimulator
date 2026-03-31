@@ -68,6 +68,7 @@ export function createWaterPlane(sun) {
 
   water.rotation.x = -Math.PI / 2;
   water.position.y = WATER_LEVEL;
+  water.material.side = THREE.DoubleSide; // visible from underwater too
 
   function update(dt) {
     water.material.uniforms.time.value += dt;
