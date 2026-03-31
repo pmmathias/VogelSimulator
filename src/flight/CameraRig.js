@@ -33,9 +33,8 @@ export class CameraRig {
       .add(upOffset)
       .add(rollOffset);
 
-    // Look-ahead point (slightly in front of the bird)
-    const lookAhead = s.position.clone()
-      .add(s.forward.clone().multiplyScalar(10));
+    // Look at bird position (not ahead — prevents rotation-induced altitude shifts)
+    const lookAhead = s.position.clone();
 
     if (!this._initialized) {
       this._currentPos.copy(desiredPos);
