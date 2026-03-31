@@ -126,15 +126,23 @@ export class ArmAnalyzer {
     this._handsAbove = bothAbove;
 
     if (bothAbove !== wasAbove) {
-      // Hands crossed the shoulder line!
       this._stateChanges.push(now);
     }
 
-    // Clean old transitions (older than 3 seconds)
+    // Keep only recent transitions (3 seconds)
     this._stateChanges = this._stateChanges.filter(t => now - t < 3000);
 
-    // === FLAP: 3+ transitions in 3 seconds ===
-    if (this._stateChanges.length >= 3) {
+    // === FLAP: need 3 CONSECUTIVE fast transitions (each < 1.5s apart) ===
+    let consecutiveFast = 0;
+    for (let i = 1; i < this._stateChanges.length; i++) {
+      if (this._stateChanges[i] - this._stateChanges[i - 1] < 1500) {
+        consecutiveFast++;
+      } else {
+        consecutiveFast = 0; // reset if gap too long
+      }
+    }
+
+    if (consecutiveFast >= 3) {
       this.flapStrength = clamp(this._stateChanges.length / 6, 0.5, 1.0);
       this._lastFlapTime = now;
     } else if (now - this._lastFlapTime < 400) {
