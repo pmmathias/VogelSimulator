@@ -58,8 +58,8 @@ export function generateArcs(count = ARC_COUNT, seed = null) {
     arcs.push({
       cx: Math.cos(angle) * dist,
       cz: Math.sin(angle) * dist,
-      radius: randomRange(30, 120),
-      height: randomRange(-40, -15), // deep negative = canyon
+      radius: randomRange(40, 180),
+      height: randomRange(-80, -25), // much deeper canyons
     });
   }
 
@@ -232,7 +232,7 @@ function saveWorldCache(arcs, cacheData, resolution) {
     localStorage.setItem('world_arcs', arcsJson);
     localStorage.setItem('world_heightmap', b64);
     localStorage.setItem('world_resolution', String(resolution));
-    localStorage.setItem('world_version', `${ARC_COUNT}_${WORLD_SIZE}_${ARC_MAX_RADIUS}_${ARC_MAX_HEIGHT}_v7`);
+    localStorage.setItem('world_version', `${ARC_COUNT}_${WORLD_SIZE}_${ARC_MAX_RADIUS}_${ARC_MAX_HEIGHT}_v8`);
     console.log('World cached to localStorage');
   } catch (e) {
     console.warn('Could not cache world:', e.message);
@@ -244,7 +244,7 @@ function saveWorldCache(arcs, cacheData, resolution) {
  */
 function loadWorldCache() {
   try {
-    const version = `${ARC_COUNT}_${WORLD_SIZE}_${ARC_MAX_RADIUS}_${ARC_MAX_HEIGHT}_v7`;
+    const version = `${ARC_COUNT}_${WORLD_SIZE}_${ARC_MAX_RADIUS}_${ARC_MAX_HEIGHT}_v8`;
     if (localStorage.getItem('world_version') !== version) return null;
 
     const arcsJson = localStorage.getItem('world_arcs');

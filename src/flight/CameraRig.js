@@ -28,7 +28,7 @@ export class CameraRig {
     }
 
     // Smooth follow
-    const followSpeed = 4.0 + Math.max(0, s.speed - 20) * 0.1;
+    const followSpeed = 3.0 + Math.max(0, s.speed - 20) * 0.05; // smoother follow
     const t = 1 - Math.exp(-followSpeed * dt);
     this._currentPos.lerp(desiredPos, t);
 
