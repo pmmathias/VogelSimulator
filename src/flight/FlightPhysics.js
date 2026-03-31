@@ -151,7 +151,7 @@ export class FlightPhysics {
     if (s.flapPhase > 0) {
       const thrustAccel = FLAP_THRUST * (s.flapStrengthScale || 1) / BIRD_MASS;
       const thrustDir = s.forward.clone();
-      thrustDir.y += 1.2; // strong upward component (~70% vertical)
+      thrustDir.y += 0.6; // moderate upward component (~50% vertical)
       thrustDir.normalize();
       s.velocity.addScaledVector(thrustDir, thrustAccel * dt);
       s.flapPhase -= dt;
@@ -165,7 +165,7 @@ export class FlightPhysics {
     if (speed > 2 && s.wingSpread > 0.5) {
       const velDir = s.velocity.clone().normalize();
       const targetPitch = Math.asin(clamp(velDir.y, -0.8, 0.8));
-      s.pitch += (targetPitch - s.pitch) * 2.0 * dt;
+      s.pitch += (targetPitch - s.pitch) * 0.8 * dt; // gentle auto-trim
     }
 
     // --- 9. Wing tuck → nosedive ---
