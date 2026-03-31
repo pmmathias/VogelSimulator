@@ -169,26 +169,30 @@ export class ArmAnalyzer {
     const targetRoll = clamp(elevDiff * 2.5, -1, 1);
     this.roll += (targetRoll - this.roll) * 0.15;
 
-    // === PITCH: from state ===
+    // === PITCH: proportional to elevation (not binary) ===
+    // avgElev > 0 = hands above shoulders, < 0 = below
     let targetPitch;
-    if (this._diveActive) {
-      targetPitch = -0.6;
-    } else if (isFlapping) {
+    if (isFlapping) {
       targetPitch = 0.1;
-    } else if (avgElev > 0.12) {
-      targetPitch = clamp((avgElev - 0.12) * 6, 0, 0.8); // climb
+    } else if (avgElev > 0.02) {
+      // CLIMB: proportional — higher hands = steeper climb
+      targetPitch = clamp(avgElev * 4, 0, 0.8);
+    } else if (avgElev < -0.02) {
+      // DIVE: proportional — lower hands = steeper dive
+      targetPitch = clamp(avgElev * 4, -0.8, 0);
     } else {
-      targetPitch = 0;
+      targetPitch = 0; // neutral zone ±0.02
     }
     this.pitch += (targetPitch - this.pitch) * 0.15;
 
-    // === WING SPREAD ===
+    // === WING SPREAD: proportional ===
     const recentlyFlapped = (now - this._lastFlapTime < 600);
     let targetSpread;
-    if (this._diveActive) {
-      targetSpread = 0;
-    } else if (recentlyFlapped || bothAbove) {
+    if (recentlyFlapped) {
       targetSpread = 1.0;
+    } else {
+      // Smooth 0→1 based on elevation: hands down=0, hands up=1
+      targetSpread = clamp(remap(avgElev, -0.1, 0.05, 0, 1), 0, 1);
     } else {
       targetSpread = clamp(remap(avgElev, -0.05, 0.08, 0, 1), 0, 1);
     }
