@@ -14,8 +14,8 @@ export function createWaterPlane(sun) {
     textureWidth: 512,
     textureHeight: 512,
     waterNormals: new THREE.TextureLoader().load(
-      // Use a procedural fallback if no texture file exists
-      'textures/water-normal.jpg',
+      // Official Three.js water normals (much better than procedural)
+      'textures/waternormals.jpg',
       (tex) => {
         tex.wrapS = THREE.RepeatWrapping;
         tex.wrapT = THREE.RepeatWrapping;
