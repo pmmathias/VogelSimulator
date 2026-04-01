@@ -65,19 +65,21 @@ function getValidTypes(elevation) {
  */
 export function createForest(arcs, housePositions = []) {
   // Prepare materials and geometries per type
-  const typeData = TREE_TYPES.map((type) => {
-    const canvas = type.genCanvas();
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
+  // Color palettes for each tree type
+  const treeColors = {
+    oak: { trunk: 0x5a3a1a, crown: 0x2a6b1e },
+    pine: { trunk: 0x3a2008, crown: 0x1a4a18 },
+    birch: { trunk: 0xe8e0d0, crown: 0x5aaa3a },
+    bush: { trunk: 0x4a3a1a, crown: 0x2a6a1a },
+  };
 
-    const geo = createTreeGeometry(type.geoArgs[0], type.geoArgs[1]);
-    const mat = new THREE.MeshLambertMaterial({
-      map: texture,
-      transparent: false,  // no alpha blending → fog won't color transparent areas
-      alphaTest: 0.4,      // hard cutoff instead of blending
-      side: THREE.DoubleSide,
-      depthWrite: true,
-    });
+  const typeData = TREE_TYPES.map((type) => {
+    const colors = treeColors[type.name] || treeColors.oak;
+    const geo = createTreeGeometry(type.geoArgs[0], type.geoArgs[1], type.name);
+
+    // Two materials: trunk (index 0 = cylinder) and crown (rest)
+    // For InstancedMesh we use a single material — blend trunk color into crown
+    const mat = new THREE.MeshLambertMaterial({ color: colors.crown });
 
     return { type, geo, mat, transforms: [] };
   });

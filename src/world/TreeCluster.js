@@ -318,30 +318,53 @@ export function generateBushCanvas(width = 256, height = 256) {
 }
 
 /**
- * Create the geometry for a single tree billboard (3 crossed planes).
- * Returns a merged BufferGeometry.
+ * Create 3D tree geometry (trunk cylinder + crown).
+ * Type determines crown shape: 'oak'=sphere, 'pine'=cone, 'birch'=ellipsoid, 'bush'=flat sphere
  */
-export function createTreeGeometry(treeHeight = 14, treeWidth = 8) {
-  const halfW = treeWidth / 2;
-  const planes = [];
+export function createTreeGeometry(treeHeight = 1, treeWidth = 0.8, type = 'oak') {
+  const parts = [];
+  const trunkH = treeHeight * 0.5;
+  const crownH = treeHeight * 0.55;
+  const trunkR = treeWidth * 0.06;
 
-  // 3 planes at 0, 60, 120 degrees
-  for (let i = 0; i < 3; i++) {
-    const angle = (i * Math.PI) / 3;
-    const plane = new THREE.PlaneGeometry(treeWidth, treeHeight);
+  // Trunk (low-poly cylinder)
+  const trunk = new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 5);
+  trunk.translate(0, trunkH / 2, 0);
+  parts.push(trunk);
 
-    // Rotate around Y axis
-    const matrix = new THREE.Matrix4();
-    matrix.makeRotationY(angle);
-    // Shift up so base is at y=0
-    matrix.setPosition(0, treeHeight / 2, 0);
-    plane.applyMatrix4(matrix);
-
-    planes.push(plane);
+  if (type === 'pine') {
+    // Pine: stacked cones
+    for (let i = 0; i < 3; i++) {
+      const t = i / 3;
+      const coneR = treeWidth * (0.35 - t * 0.1);
+      const coneH = crownH * 0.45;
+      const cone = new THREE.ConeGeometry(coneR, coneH, 6);
+      cone.translate(0, trunkH + t * crownH * 0.35 + coneH * 0.4, 0);
+      parts.push(cone);
+    }
+  } else if (type === 'birch') {
+    // Birch: elongated ellipsoid crown
+    const crown = new THREE.SphereGeometry(treeWidth * 0.25, 6, 5);
+    crown.scale(1, 1.4, 1);
+    crown.translate(0, trunkH + crownH * 0.35, 0);
+    parts.push(crown);
+  } else if (type === 'bush') {
+    // Bush: flat wide sphere, no visible trunk
+    const bush = new THREE.SphereGeometry(treeWidth * 0.5, 6, 4);
+    bush.scale(1, 0.5, 1);
+    bush.translate(0, treeHeight * 0.25, 0);
+    parts.push(bush);
+  } else {
+    // Oak: round crown (2 overlapping spheres for organic look)
+    const crown1 = new THREE.SphereGeometry(treeWidth * 0.35, 6, 5);
+    crown1.translate(0, trunkH + crownH * 0.3, 0);
+    parts.push(crown1);
+    const crown2 = new THREE.SphereGeometry(treeWidth * 0.25, 5, 4);
+    crown2.translate(treeWidth * 0.1, trunkH + crownH * 0.5, treeWidth * 0.05);
+    parts.push(crown2);
   }
 
-  // Merge geometries
-  return mergeGeometries(planes);
+  return mergeGeometries(parts);
 }
 
 /**
