@@ -12,6 +12,7 @@ import { getTerrainHeight } from './world/Terrain.js';
 import { FlightState } from './flight/FlightState.js';
 import { FlightPhysics } from './flight/FlightPhysics.js';
 import { CameraRig } from './flight/CameraRig.js';
+import { BirdModel } from './flight/BirdModel.js';
 import { WebcamManager } from './pose/WebcamManager.js';
 import { PoseDetector } from './pose/PoseDetector.js';
 import { ArmAnalyzer } from './pose/ArmAnalyzer.js';
@@ -62,6 +63,7 @@ flightState.altitude = flightState.position.y;
 console.log(`Spawn height: ${flightState.position.y.toFixed(0)}m (terrain max nearby: ${maxH.toFixed(0)}m)`);
 const flightPhysics = new FlightPhysics(flightState);
 const cameraRig = new CameraRig(camera, flightState);
+const birdModel = new BirdModel(scene);
 const input = new InputManager();
 // Toggle webcam overlay when input mode changes
 input.onModeChange = (isKeyboard) => {
@@ -223,6 +225,7 @@ loop.onUpdate((dt) => {
 
     // Camera follow
     cameraRig.update(dt);
+    birdModel.update(flightState, dt, camera);
 
     // HUD
     hud.update(flightState, input.lift > 0, input.source);
