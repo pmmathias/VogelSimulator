@@ -62,11 +62,7 @@ export class InputManager {
       this.roll = this._poseInput.roll;
       this.pitch = this._poseInput.pitch;
       this.wingSpread = this._poseInput.wingSpread ?? 1.0;
-      // Dive gesture
-      if (this._poseInput.diveActive) {
-        this.wingSpread = 0;
-        this.pitch = Math.min(this.pitch, -0.6);
-      }
+      // No override — pitch and wingSpread are already stufenlos from ArmAnalyzer
       return;
     }
 
