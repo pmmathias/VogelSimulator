@@ -34,19 +34,14 @@ function createHotelBuilding(group, x, y, z, width, depth, floors) {
   roof.position.set(x, y + totalH + 0.25, z);
   group.add(roof);
 
-  // Windows (dark stripes on facade)
+  // Windows (single stripe per facade instead of per-floor)
   const winMat = makeMat(0x4477aa);
-  for (let f = 0; f < floors; f++) {
-    const wy = y + f * floorH + floorH * 0.6;
-    // Front windows
-    const win = makeBox(width * 0.9, floorH * 0.4, 0.2, winMat);
-    win.position.set(x, wy, z - depth / 2 - 0.1);
-    group.add(win);
-    // Back windows
-    const win2 = win.clone();
-    win2.position.set(x, wy, z + depth / 2 + 0.1);
-    group.add(win2);
-  }
+  const winFront = makeBox(width * 0.85, totalH * 0.8, 0.2, winMat);
+  winFront.position.set(x, y + totalH * 0.45, z - depth / 2 - 0.1);
+  group.add(winFront);
+  const winBack = winFront.clone();
+  winBack.position.set(x, y + totalH * 0.45, z + depth / 2 + 0.1);
+  group.add(winBack);
 
   // Sign
   const signMat = makeMat(0x1155aa, { emissive: 0x1155aa, emissiveIntensity: 0.3 });
@@ -136,16 +131,16 @@ function createResort(groundY) {
   createWaterSlide(g, -20, y, 38, 9, 0xff4444);
   createWaterSlide(g, -35, y, 35, 6, 0x44dd88);
 
-  // Palm trees around pool
-  for (let i = 0; i < 15; i++) {
+  // Palm trees around pool (fewer for performance)
+  for (let i = 0; i < 6; i++) {
     const px = randomRange(-40, 50);
     const pz = randomRange(10, 50);
     createPalmTree(g, px, y, pz, 6 + Math.random() * 5);
   }
 
-  // Loungers (simple small boxes)
+  // Loungers (fewer for performance)
   const loungerMat = makeMat(0xeeeecc);
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 8; i++) {
     const l = makeBox(0.8, 0.3, 2, loungerMat);
     l.position.set(randomRange(-30, 40), y + 0.15, randomRange(35, 48));
     l.rotation.y = Math.random() * 0.3;

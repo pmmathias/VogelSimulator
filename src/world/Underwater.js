@@ -447,6 +447,9 @@ export class UnderwaterWorld {
     const wasUnderwater = this._isUnderwater;
     this._isUnderwater = birdAltitude < WATER_LEVEL;
 
+    // Hide all underwater objects when above water (massive perf gain: 8000+ sprites)
+    this.group.visible = this._isUnderwater;
+
     if (this._isUnderwater !== wasUnderwater) {
       this._overlay.style.opacity = this._isUnderwater ? '1' : '0';
       if (this.scene.fog) {
