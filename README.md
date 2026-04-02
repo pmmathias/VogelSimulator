@@ -2,6 +2,8 @@
 
 A browser-based bird flight simulator with real-time webcam gesture control. Fly like a bird using your arms, or use keyboard controls. Built with Three.js and MediaPipe.
 
+> **Read the full story:** [How we built a gesture-controlled bird flight simulator with AI](https://ki-mathias.de/vogelsimulator.html) — development blog with behind-the-scenes insights, architecture decisions, and lessons learned from building this project with Claude Code.
+
 ![Stork soaring over the island](blog-screenshots/video-stork-soaring.jpg)
 
 ## Gallery
@@ -239,3 +241,9 @@ Building textures from [Poly Haven](https://polyhaven.com/) - CC0 (public domain
 ## Credits
 
 Built with [Claude Code](https://claude.ai/claude-code) (Anthropic Claude Opus 4.6).
+
+## Blog & Documentation
+
+- **Project Blog Post:** [VogelSimulator — Gesture-controlled bird flight simulator](https://ki-mathias.de/vogelsimulator.html)
+- **AI & Technology Blog:** [ki-mathias.de](https://ki-mathias.de/) — Insights on AI-assisted software development
+- **GitHub Repository:** [pmmathias/VogelSimulator](https://github.com/pmmathias/VogelSimulator)
