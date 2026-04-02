@@ -2,16 +2,18 @@
 
 A browser-based bird flight simulator with real-time webcam gesture control. Fly like a bird using your arms, or use keyboard controls. Built with Three.js and MediaPipe.
 
-![Stork flying over island](blog-screenshots/01-start-overview.jpg)
+![Stork soaring over the island](blog-screenshots/video-stork-soaring.jpg)
 
 ## Gallery
 
 | | |
 |---|---|
-| ![Turn over mountains](blog-screenshots/04-turn-mountains.jpg) | ![Low flight](blog-screenshots/06-low-flight.jpg) |
-| *Banking turn over the island* | *Stork soaring over lakes and forests* |
-| ![Speed dive](blog-screenshots/07-speed-dive.jpg) | ![Climb with stork](blog-screenshots/02-climb-stork.jpg) |
-| *Diving at 215 km/h* | *Climbing over coastal hotels* |
+| ![3D trees close-up](blog-screenshots/video-trees-closeup.jpg) | ![Coastal flight](blog-screenshots/video-coastal-flight.jpg) |
+| *Flying through 3D forests with webcam gesture control* | *Stork gliding along the coast with snow-capped mountains* |
+| ![Island overview](blog-screenshots/video-island-overview.jpg) | ![Low coastal flight](blog-screenshots/video-low-coastal.jpg) |
+| *Bird's eye view: hotels, lakes, forests, and mountains* | *Skimming the coastline at low altitude* |
+| ![Water skim](blog-screenshots/video-water-skim.jpg) | ![Speed dive](blog-screenshots/07-speed-dive.jpg) |
+| *Stork gliding just above the water surface* | *Diving toward the island at high speed* |
 
 ## Features
 
