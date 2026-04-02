@@ -2,7 +2,16 @@
 
 A browser-based bird flight simulator with real-time webcam gesture control. Fly like a bird using your arms, or use keyboard controls. Built with Three.js and MediaPipe.
 
-![Bird's eye view of the island](blog-screenshots/5layers-start.jpg)
+![Stork flying over island](blog-screenshots/01-start-overview.jpg)
+
+## Gallery
+
+| | |
+|---|---|
+| ![Turn over mountains](blog-screenshots/04-turn-mountains.jpg) | ![Low flight](blog-screenshots/06-low-flight.jpg) |
+| *Banking turn over the island* | *Stork soaring over lakes and forests* |
+| ![Speed dive](blog-screenshots/07-speed-dive.jpg) | ![Climb with stork](blog-screenshots/02-climb-stork.jpg) |
+| *Diving at 215 km/h* | *Climbing over coastal hotels* |
 
 ## Features
 
