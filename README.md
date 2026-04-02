@@ -1,8 +1,14 @@
-# VogelSimulator
+# 🦅 VogelSimulator — Flap Your Arms to Fly
 
-A browser-based bird flight simulator with real-time webcam gesture control. Fly like a bird using your arms, or use keyboard controls. Built with Three.js and MediaPipe.
+[![GitHub Stars](https://img.shields.io/github/stars/pmmathias/VogelSimulator?style=social)](https://github.com/pmmathias/VogelSimulator)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Three.js](https://img.shields.io/badge/Three.js-r183-blue?logo=threedotjs)](https://threejs.org/)
+[![MediaPipe](https://img.shields.io/badge/MediaPipe-Pose-orange?logo=google)](https://mediapipe.dev/)
+[![Blog Post](https://img.shields.io/badge/Blog-ki--mathias.de-cyan)](https://ki-mathias.de/vogelsimulator.html)
 
-> **Read the full story:** [How we built a gesture-controlled bird flight simulator with AI](https://ki-mathias.de/vogelsimulator.html) — development blog with behind-the-scenes insights, architecture decisions, and lessons learned from building this project with Claude Code.
+**A browser-based 3D bird flight simulator with real-time webcam gesture control.** Flap your arms to gain altitude, spread them to glide, tuck them to dive — all tracked via your webcam. No installation needed beyond `npm install`.
+
+> 📖 **Read the full story:** [How we built a gesture-controlled bird flight simulator with AI](https://ki-mathias.de/vogelsimulator.html) — development blog with behind-the-scenes insights, architecture decisions, and lessons learned.
 
 ![Stork soaring over the island](blog-screenshots/video-stork-soaring.jpg)
 
