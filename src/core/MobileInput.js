@@ -181,6 +181,9 @@ export function requestFullscreenLandscape() {
  * Detect if we're on a mobile/tablet device.
  */
 export function isMobileDevice() {
+  // Check multiple signals — iPadOS pretends to be desktop Safari
   return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-    || (navigator.maxTouchPoints > 1);
+    || (navigator.maxTouchPoints > 1)
+    || ('ontouchstart' in window)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 0); // iPad
 }
