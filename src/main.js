@@ -17,6 +17,8 @@ import { WebcamManager } from './pose/WebcamManager.js';
 import { PoseDetector } from './pose/PoseDetector.js';
 import { ArmAnalyzer } from './pose/ArmAnalyzer.js';
 import { Autopilot, DEMO_SEQUENCE } from './core/Autopilot.js';
+import { MobileInput, isMobileDevice } from './core/MobileInput.js';
+import { MobileUI } from './ui/MobileUI.js';
 import {
   CAMERA_FOV, CAMERA_NEAR, CAMERA_FAR,
   FOG_NEAR, FOG_FAR,
@@ -71,6 +73,30 @@ input.onModeChange = (isKeyboard) => {
     isKeyboard ? webcamOverlay.hide() : webcamOverlay.show();
   }
 };
+
+// --- Mobile input ---
+const mobileInput = new MobileInput();
+let mobileUI = null;
+const isMobile = isMobileDevice();
+
+if (isMobile) {
+  mobileUI = new MobileUI(mobileInput);
+  // Hide desktop UI on mobile
+  hud.hint.style.display = 'none';
+  mobileUI.onStart(() => {
+    console.log('Mobile game started');
+    // Double-tap to recalibrate
+    let lastTap = 0;
+    document.addEventListener('touchend', () => {
+      const now = Date.now();
+      if (now - lastTap < 300) {
+        mobileInput.calibrate();
+        console.log('Recalibrated');
+      }
+      lastTap = now;
+    });
+  });
+}
 const hud = new HUD();
 
 // --- Autopilot ---
@@ -208,6 +234,16 @@ loop.onUpdate((dt) => {
     input.update(dt);
     autopilot.update(dt, input);
 
+    // Mobile gyro input overrides when active
+    if (mobileInput.active) {
+      mobileInput.update(dt);
+      input.source = 'mobile';
+      input.pitch = mobileInput.pitch;
+      input.roll = mobileInput.roll;
+      input.lift = mobileInput.lift;
+      input.wingSpread = mobileInput.wingSpread;
+    }
+
     // Apply controls to physics
     flightState.wingSpread = input.wingSpread;
     flightPhysics.flap(input.lift);
@@ -237,5 +273,7 @@ loop.onUpdate((dt) => {
 });
 loop.start();
 
-// Init webcam in background (non-blocking)
-initWebcam();
+// Init webcam in background (desktop only — mobile uses gyroscope)
+if (!isMobile) {
+  initWebcam();
+}
