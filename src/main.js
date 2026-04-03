@@ -126,6 +126,11 @@ let poseActive = false;
 let flightMode = true; // start in flight mode
 
 async function initWebcam() {
+  // Double-check: never init webcam on mobile/touch devices
+  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+    console.log('Touch device detected — skipping webcam init');
+    return;
+  }
   const video = await webcamManager.init();
   if (!video) {
     console.warn('Webcam not available, using keyboard only.');
