@@ -6,3 +6,21 @@ dist/
 *.png
 *.jpg
 blog-screenshots/header-*.mp4
+
+# Internal / not for public
+LAUNCH-POST.md
+YOUTUBE-VIDEO-BRIEF.md
+tickets/
+social-preview.jpg
+*.mov
+perf-*.png
+bird-model-*.png
+stork-*.png
+uw-*.png
+snow-*.png
+layers*.png
+test-*.png
+3d-trees-*.png
+hotel-test-*.png
+dive-test-*.png
+screenshot-*.png
