@@ -33,18 +33,19 @@ export class CameraRig {
       this._initialized = true;
     }
 
-    // Smooth interpolation — constant rate regardless of speed
-    const t = 1 - Math.exp(-3.0 * dt);
-    this._pos.lerp(desiredPos, t);
-    this._lookTarget.lerp(desiredLook, t);
+    // Position slightly lazy to reveal flock, lookAt stays tight
+    const posRate = 1 - Math.exp(-2.5 * dt);
+    const lookRate = 1 - Math.exp(-3.0 * dt);
+    this._pos.lerp(desiredPos, posRate);
+    this._lookTarget.lerp(desiredLook, lookRate);
 
     // Smooth roll
-    this._roll += (s.roll * 0.4 - this._roll) * t;
+    this._roll += (s.roll * 0.4 - this._roll) * posRate;
 
     // Smooth FOV
     const speedRatio = s.speed / 40;
     const targetFov = CAMERA_FOV + Math.max(0, (speedRatio - 1.5)) * 15;
-    this._fov += (targetFov - this._fov) * t;
+    this._fov += (targetFov - this._fov) * posRate;
 
     // Apply
     this.camera.position.copy(this._pos);

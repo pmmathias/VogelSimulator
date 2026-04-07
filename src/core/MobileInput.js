@@ -1,61 +1,58 @@
 import { clamp } from '../utils/math.js';
 
 /**
- * Mobile device input: gyroscope tilt for flight control + shake for flap.
+ * Mobile gyroscope input for flight control.
  *
- * - Tilt forward → dive
- * - Tilt backward → climb
- * - Tilt left/right → bank turn
- * - Shake device → 5 flaps burst
- * - Landscape fullscreen only
+ * Landscape mode (phone horizontal, screen facing up/toward you):
+ * - Tilt phone toward you → climb
+ * - Tilt phone away from you → dive
+ * - Tilt phone left → turn left
+ * - Tilt phone right → turn right
+ * - Shake → flap burst
  */
 export class MobileInput {
   constructor() {
     this.available = false;
     this.active = false;
 
-    // Output values (same interface as InputManager expects)
-    this.pitch = 0;    // -1..1
-    this.roll = 0;     // -1..1
-    this.lift = 0;     // 0..1
+    // Outputs
+    this.pitch = 0;
+    this.roll = 0;
+    this.lift = 0;
     this.wingSpread = 1;
 
-    // Calibration
+    // Calibration — ONLY triggered by PLAY tap or double-tap
     this._calibrated = false;
-    this._restBeta = 0;   // forward/back tilt at rest
-    this._restGamma = 0;  // left/right tilt at rest
+    this._pendingCalibration = false;
+    this._restBeta = 0;
+    this._restGamma = 0;
 
-    // Shake detection
+    // Shake
     this._lastAccel = { x: 0, y: 0, z: 0 };
-    this._shakeThreshold = 20;
+    this._shakeThreshold = 12; // lowered from 20 — easier to trigger
     this._lastShakeTime = 0;
-    this._flapBurst = 0;       // remaining flap frames
-    this._flapBurstTotal = 90; // ~1.5s at 60fps = 5 flap cycles
+    this._flapBurst = 0;
+    this._flapBurstTotal = 90;
 
     // Smoothing
     this._smoothPitch = 0;
     this._smoothRoll = 0;
 
-    // Try to request permission and setup listeners
+    // Debug overlay
+    this._debugEl = null;
+
     this._setup();
   }
 
   async _setup() {
-    // Check if DeviceOrientation is available
     if (!window.DeviceOrientationEvent) return;
-
-    // iOS 13+ requires explicit permission
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-      // We'll request on first user interaction (tap)
       this._needsPermission = true;
     } else {
       this._startListening();
     }
   }
 
-  /**
-   * Must be called from a user gesture (tap/click) on iOS.
-   */
   async requestPermission() {
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
       try {
@@ -69,7 +66,6 @@ export class MobileInput {
       }
       return false;
     }
-    // Android — no permission needed
     this._startListening();
     return true;
   }
@@ -84,48 +80,82 @@ export class MobileInput {
   _onOrientation(e) {
     if (!this.active) return;
 
-    const beta = e.beta;   // front/back tilt (-180..180), 0 = flat
-    const gamma = e.gamma; // left/right tilt (-90..90)
+    const beta = e.beta;   // -180..180 (front/back tilt, 0=flat on table)
+    const gamma = e.gamma; // -90..90 (left/right tilt)
 
     if (beta === null || gamma === null) return;
 
-    // Calibrate on first reading (assumes device starts roughly level in landscape)
-    if (!this._calibrated) {
+    // Only calibrate when explicitly triggered (PLAY button or double-tap)
+    if (this._pendingCalibration) {
       this._restBeta = beta;
       this._restGamma = gamma;
       this._calibrated = true;
-      console.log(`Mobile calibrated: beta=${beta.toFixed(1)}, gamma=${gamma.toFixed(1)}`);
+      this._pendingCalibration = false;
+      console.log(`Calibrated: beta=${beta.toFixed(1)}°, gamma=${gamma.toFixed(1)}°`);
     }
 
-    // In landscape mode:
-    // gamma (left/right) → pitch (dive/climb)
-    // beta (forward/back) → roll (turn)
-    // (axes are swapped in landscape orientation)
-    const rawPitch = -(gamma - this._restGamma) / 30; // 30° = full pitch
-    const rawRoll = (beta - this._restBeta) / 25;     // 25° = full roll
+    // If not yet calibrated, don't move (wait for PLAY or double-tap)
+    if (!this._calibrated) return;
 
-    // Smooth
-    this._smoothPitch += (clamp(rawPitch, -1, 1) - this._smoothPitch) * 0.08;
-    this._smoothRoll += (clamp(rawRoll, -1, 1) - this._smoothRoll) * 0.08;
+    // Delta from calibrated rest position
+    const dBeta = beta - this._restBeta;
+    const dGamma = gamma - this._restGamma;
+
+    // In landscape on iPhone (home button right = angle 90):
+    // - Tilting phone toward you increases gamma → should be CLIMB (positive pitch)
+    // - Tilting phone away decreases gamma → DIVE (negative pitch)
+    // - Tilting phone right increases beta → TURN RIGHT (negative roll for banking)
+    // - Tilting phone left decreases beta → TURN LEFT (positive roll)
+    //
+    // In landscape (home button left = angle -90): axes are inverted
+
+    const angle = screen.orientation?.angle ?? window.orientation ?? 0;
+
+    let pitchDeg, rollDeg;
+    if (angle === 90 || angle === -270) {
+      pitchDeg = dGamma;   // toward you = positive gamma delta = climb
+      rollDeg = dBeta;
+    } else if (angle === -90 || angle === 270) {
+      pitchDeg = -dGamma;
+      rollDeg = -dBeta;
+    } else {
+      // Portrait fallback
+      pitchDeg = -dBeta;
+      rollDeg = dGamma;
+    }
+
+    // Very forgiving tilt mapping:
+    // 60° = full deflection, quintic curve (x⁵) = ultra gentle near center
+    const normPitch = clamp(pitchDeg / 60, -1, 1);
+    const normRoll = clamp(rollDeg / 60, -1, 1);
+
+    // Quintic curve: x⁵ = extremely gentle near center, only strong at extremes
+    const rawPitch = Math.pow(Math.abs(normPitch), 3) * Math.sign(normPitch) * 0.6;
+    const rawRoll = Math.pow(Math.abs(normRoll), 3) * Math.sign(normRoll) * 0.6;
+
+    // Very slow smoothing = no sudden movements
+    this._smoothPitch += (rawPitch - this._smoothPitch) * 0.04;
+    this._smoothRoll += (rawRoll - this._smoothRoll) * 0.04;
 
     this.pitch = this._smoothPitch;
     this.roll = this._smoothRoll;
 
-    // Wing spread from pitch (dive = tuck wings)
-    if (this.pitch < -0.2) {
-      this.wingSpread = clamp(1 + this.pitch * 2, 0, 1); // pitch -0.5 → wingSpread 0
+    // Wing spread
+    if (this.pitch < -0.15) {
+      this.wingSpread = clamp(1 + this.pitch * 2.5, 0, 1);
     } else {
       this.wingSpread = 1;
     }
+
+    // Debug overlay
+    this._updateDebug(beta, gamma, dBeta, dGamma, pitchDeg, rollDeg);
   }
 
   _onMotion(e) {
     if (!this.active) return;
-
     const accel = e.accelerationIncludingGravity;
     if (!accel) return;
 
-    // Detect shake: sudden acceleration change
     const dx = accel.x - this._lastAccel.x;
     const dy = accel.y - this._lastAccel.y;
     const dz = accel.z - this._lastAccel.z;
@@ -134,17 +164,12 @@ export class MobileInput {
     this._lastAccel = { x: accel.x, y: accel.y, z: accel.z };
 
     const now = performance.now();
-    if (delta > this._shakeThreshold && now - this._lastShakeTime > 500) {
-      // SHAKE detected → trigger flap burst (5 flaps)
+    if (delta > this._shakeThreshold && now - this._lastShakeTime > 400) {
       this._flapBurst = this._flapBurstTotal;
       this._lastShakeTime = now;
-      console.log('Shake! Flap burst triggered');
     }
   }
 
-  /**
-   * Call each frame to update lift from flap burst.
-   */
   update(dt) {
     if (this._flapBurst > 0) {
       this.lift = 1;
@@ -155,35 +180,46 @@ export class MobileInput {
   }
 
   /**
-   * Recalibrate (use current tilt as neutral).
+   * Schedule calibration on next orientation event.
+   * Called by: PLAY button tap + double-tap. Nothing else.
    */
   calibrate() {
-    this._calibrated = false;
+    this._pendingCalibration = true;
+    this._smoothPitch = 0;
+    this._smoothRoll = 0;
+  }
+
+  _updateDebug(beta, gamma, dBeta, dGamma, pitchDeg, rollDeg) {
+    if (!this._debugEl) {
+      this._debugEl = document.createElement('div');
+      this._debugEl.style.cssText = `
+        position:fixed; top:4px; left:4px; color:rgba(255,255,255,0.6);
+        font:10px monospace; pointer-events:none; z-index:999;
+        background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:4px;
+      `;
+      document.body.appendChild(this._debugEl);
+    }
+    this._debugEl.textContent =
+      `β:${beta.toFixed(0)}° γ:${gamma.toFixed(0)}° | ` +
+      `P:${this.pitch.toFixed(2)} R:${this.roll.toFixed(2)} | ` +
+      `${this._flapBurst > 0 ? 'FLAP!' : 'ws:' + this.wingSpread.toFixed(1)}`;
   }
 }
 
-/**
- * Request fullscreen in landscape mode.
- */
 export function requestFullscreenLandscape() {
   const el = document.documentElement;
   const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
   if (rfs) {
-    rfs.call(el);
-    // Lock to landscape if supported
+    rfs.call(el).catch(() => {});
     if (screen.orientation && screen.orientation.lock) {
       screen.orientation.lock('landscape').catch(() => {});
     }
   }
 }
 
-/**
- * Detect if we're on a mobile/tablet device.
- */
 export function isMobileDevice() {
-  // Check multiple signals — iPadOS pretends to be desktop Safari
   return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
     || (navigator.maxTouchPoints > 1)
     || ('ontouchstart' in window)
-    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 0); // iPad
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 0);
 }

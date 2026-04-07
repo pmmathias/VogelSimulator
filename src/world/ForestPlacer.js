@@ -84,8 +84,11 @@ export function createForest(arcs, housePositions = []) {
     return { type, geo, mat, transforms: [] };
   });
 
-  // Scatter trees
-  for (let c = 0; c < TREE_CLUSTER_COUNT; c++) {
+  // Scatter trees (reduced on mobile)
+  const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || navigator.maxTouchPoints > 1 || 'ontouchstart' in window;
+  const clusterLimit = IS_MOBILE ? Math.floor(TREE_CLUSTER_COUNT * 0.25) : TREE_CLUSTER_COUNT;
+  for (let c = 0; c < clusterLimit; c++) {
     const clusterX = randomRange(-WORLD_HALF * 0.9, WORLD_HALF * 0.9);
     const clusterZ = randomRange(-WORLD_HALF * 0.9, WORLD_HALF * 0.9);
     const centerHeight = getTerrainHeight(clusterX, clusterZ, arcs);

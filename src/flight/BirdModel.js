@@ -30,11 +30,18 @@ export class BirdModel {
       // Scale up for visibility from chase camera
       this._model.scale.setScalar(0.04); // Stork model is large, scale to world units
 
-      // Traverse to set materials
+      // Fix materials for mobile compatibility (no env map needed)
       this._model.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = false;
           child.receiveShadow = false;
+          if (child.material) {
+            // Keep original material but disable env-map dependency
+            child.material.envMap = null;
+            if (child.material.metalness !== undefined) child.material.metalness = 0;
+            if (child.material.roughness !== undefined) child.material.roughness = 0.8;
+            child.material.needsUpdate = true;
+          }
         }
       });
 

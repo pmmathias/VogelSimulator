@@ -64,6 +64,7 @@ export class MobileUI {
       requestFullscreenLandscape();
       await this._mobileInput.requestPermission();
       this._mobileInput.active = true;
+      this._mobileInput.calibrate(); // calibrate at PLAY tap position
       this._startScreen.style.display = 'none';
       this._controlsOverlay.style.display = 'block';
       if (this._onStart) this._onStart();

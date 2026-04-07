@@ -13,6 +13,10 @@ import {
   GRASS_TEXTURE_REPEAT, WATER_LEVEL, FOG_NEAR, FOG_FAR,
 } from '../constants.js';
 
+// Detect mobile for reduced scene complexity
+const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  || navigator.maxTouchPoints > 1 || 'ontouchstart' in window;
+
 function loadTex(url) {
   const tex = new THREE.TextureLoader().load(url);
   tex.wrapS = THREE.RepeatWrapping;
@@ -89,9 +93,11 @@ export function buildWorld(scene) {
   console.log(`Total buildings: ${totalBuildings}`);
   console.timeEnd('Houses');
 
-  // --- Hotel Resorts (beach areas) ---
-  const resorts = createHotelResorts(arcs);
-  scene.add(resorts);
+  // --- Hotel Resorts (desktop only — too many meshes for mobile) ---
+  if (!IS_MOBILE) {
+    const resorts = createHotelResorts(arcs);
+    scene.add(resorts);
+  }
 
   // --- Forest (placed AFTER houses, excludes tree positions near buildings) ---
   console.time('Forest');
@@ -99,8 +105,8 @@ export function buildWorld(scene) {
   scene.add(forest);
   console.timeEnd('Forest');
 
-  // --- Underwater world ---
-  const underwater = new UnderwaterWorld(scene, arcs);
+  // --- Underwater world (reduced on mobile) ---
+  const underwater = IS_MOBILE ? null : new UnderwaterWorld(scene, arcs);
 
   // --- Octree + Frustum Culler ---
   console.time('Octree');
@@ -116,7 +122,7 @@ export function buildWorld(scene) {
     water.update(dt);
     clouds.update(dt);
     frustumCuller.update(camera);
-    underwater.update(dt, birdAltitude);
+    if (underwater) underwater.update(dt, birdAltitude);
   }
 
   return { update, arcs, terrainChunks: chunks };

@@ -52,7 +52,9 @@ export function createCloudLayer() {
     cloudTextures.push(tex);
   }
 
-  for (let i = 0; i < CLOUD_COUNT; i++) {
+  const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
+  const cloudLimit = IS_MOBILE ? Math.floor(CLOUD_COUNT * 0.3) : CLOUD_COUNT;
+  for (let i = 0; i < cloudLimit; i++) {
     const tex = cloudTextures[Math.floor(Math.random() * cloudTextures.length)];
     const material = new THREE.SpriteMaterial({
       map: tex,

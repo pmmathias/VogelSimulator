@@ -13,12 +13,13 @@ import { FlightState } from './flight/FlightState.js';
 import { FlightPhysics } from './flight/FlightPhysics.js';
 import { CameraRig } from './flight/CameraRig.js';
 import { BirdModel } from './flight/BirdModel.js';
+import { Flock } from './flight/Flock.js';
 import { WebcamManager } from './pose/WebcamManager.js';
 import { PoseDetector } from './pose/PoseDetector.js';
 import { ArmAnalyzer } from './pose/ArmAnalyzer.js';
 import { Autopilot, DEMO_SEQUENCE } from './core/Autopilot.js';
-import { MobileInput, isMobileDevice } from './core/MobileInput.js';
-import { MobileUI } from './ui/MobileUI.js';
+// Mobile imports — loaded lazily to avoid init issues on iOS
+let MobileInput, isMobileDevice, MobileUI;
 import {
   CAMERA_FOV, CAMERA_NEAR, CAMERA_FAR,
   FOG_NEAR, FOG_FAR,
@@ -36,11 +37,7 @@ const camera = new THREE.PerspectiveCamera(
   CAMERA_FAR,
 );
 camera.position.set(0, 80, 150);
-
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-});
+window.__camera = camera; // for Renderer.js resize handler
 
 // --- OrbitControls (debug mode) ---
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -66,6 +63,12 @@ console.log(`Spawn height: ${flightState.position.y.toFixed(0)}m (terrain max ne
 const flightPhysics = new FlightPhysics(flightState);
 const cameraRig = new CameraRig(camera, flightState);
 const birdModel = new BirdModel(scene);
+
+// Flock — desktop only (too heavy for mobile)
+let flock = null;
+if (!('ontouchstart' in window) && navigator.maxTouchPoints <= 1) {
+  flock = new Flock(scene, 24);
+}
 const input = new InputManager();
 // Toggle webcam overlay when input mode changes
 input.onModeChange = (isKeyboard) => {
@@ -74,29 +77,37 @@ input.onModeChange = (isKeyboard) => {
   }
 };
 
-// --- Mobile input ---
-const mobileInput = new MobileInput();
+// --- Mobile input (lazy init) ---
+let mobileInput = null;
 let mobileUI = null;
-const isMobile = isMobileDevice();
+let isMobile = false;
 
-if (isMobile) {
-  mobileUI = new MobileUI(mobileInput);
-  // Hide desktop UI on mobile
-  hud.hint.style.display = 'none';
-  mobileUI.onStart(() => {
-    console.log('Mobile game started');
-    // Double-tap to recalibrate
-    let lastTap = 0;
-    document.addEventListener('touchend', () => {
-      const now = Date.now();
-      if (now - lastTap < 300) {
-        mobileInput.calibrate();
-        console.log('Recalibrated');
-      }
-      lastTap = now;
+(async () => {
+  const mod = await import('./core/MobileInput.js');
+  MobileInput = mod.MobileInput;
+  isMobileDevice = mod.isMobileDevice;
+  isMobile = isMobileDevice();
+
+  if (isMobile) {
+    const uiMod = await import('./ui/MobileUI.js');
+    MobileUI = uiMod.MobileUI;
+    mobileInput = new MobileInput();
+    mobileUI = new MobileUI(mobileInput);
+    hud.hint.style.display = 'none';
+    mobileUI.onStart(() => {
+      console.log('Mobile game started');
+      let lastTap = 0;
+      document.addEventListener('touchend', () => {
+        const now = Date.now();
+        if (now - lastTap < 300) {
+          mobileInput.calibrate();
+          console.log('Recalibrated');
+        }
+        lastTap = now;
+      });
     });
-  });
-}
+  }
+})();
 const hud = new HUD();
 
 // --- Autopilot ---
@@ -240,7 +251,7 @@ loop.onUpdate((dt) => {
     autopilot.update(dt, input);
 
     // Mobile gyro input overrides when active
-    if (mobileInput.active) {
+    if (mobileInput && mobileInput.active) {
       mobileInput.update(dt);
       input.source = 'mobile';
       input.pitch = mobileInput.pitch;
@@ -267,6 +278,7 @@ loop.onUpdate((dt) => {
     // Camera follow
     cameraRig.update(dt);
     birdModel.update(flightState, dt, camera);
+    if (flock) flock.update(flightState, dt);
 
     // HUD
     hud.update(flightState, input.lift > 0, input.source);
