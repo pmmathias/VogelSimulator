@@ -119,7 +119,7 @@ export class MobileInput {
     const rollRaw = this._profile.rollAxis === 'beta' ? dBeta : dGamma;
     const pitchRaw = this._profile.pitchAxis === 'beta' ? dBeta : dGamma;
 
-    const rollDeg = rollRaw * this._profile.rollSign;
+    const rollDeg = rollRaw * -this._profile.rollSign;
     const pitchDeg = pitchRaw * this._profile.pitchSign;
 
     // Normalize using calibrated range (user's actual tilt range)
