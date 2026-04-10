@@ -50,9 +50,9 @@ const isMob = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator
 if (!isMob) {
   const bloom = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.35,  // strength — subtle glow
-    0.6,   // radius
-    0.85,  // threshold — only bright areas bloom (sun, sky highlights)
+    0.2,   // strength — very subtle glow
+    0.4,   // radius
+    0.92,  // threshold — only the brightest spots bloom (sun only)
   );
   composer.addPass(bloom);
 }

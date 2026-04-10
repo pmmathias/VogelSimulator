@@ -50,19 +50,19 @@ export function createScene(renderer) {
   // Temporarily set procedural sky as background until HDR loads
   scene.background = skyEnvMap;
 
-  // Higher exposure for brighter, more dramatic sky + sun blending
-  renderer.toneMappingExposure = 1.3;
+  // Moderate exposure — HDR sky is already bright
+  renderer.toneMappingExposure = 0.7;
 
   // Fog with warm horizon tint
   const fogColor = new THREE.Color(0xb0d0e8);
   scene.fog = new THREE.Fog(fogColor, FOG_NEAR, FOG_FAR);
 
-  // Ambient light — slightly brighter for HDR sky
-  const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+  // Ambient light
+  const ambient = new THREE.AmbientLight(0xffffff, 0.4);
   scene.add(ambient);
 
-  // Directional light (sun) — brighter for sun glare feel
-  const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+  // Directional light (sun)
+  const sun = new THREE.DirectionalLight(0xffffff, 1.0);
   sun.position.copy(sunPosition).multiplyScalar(500);
   scene.add(sun);
 
