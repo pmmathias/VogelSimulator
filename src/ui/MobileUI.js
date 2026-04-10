@@ -64,24 +64,39 @@ export class MobileUI {
     document.getElementById('mobile-start-btn').addEventListener('click', async () => {
       requestFullscreenLandscape();
       const permOk = await this._mobileInput.requestPermission();
-      if (!permOk) return;
+      if (!permOk) {
+        alert('Gyroscope permission denied — cannot play without it.');
+        return;
+      }
 
       this._startScreen.style.display = 'none';
 
-      // Check for saved calibration profile
-      const saved = CalibrationWizard.loadProfile();
-      let profile;
+      try {
+        // Check for saved calibration profile
+        const saved = CalibrationWizard.loadProfile();
+        let profile;
 
-      if (saved) {
-        // Offer choice: use saved or recalibrate
-        profile = await this._showProfileChoice(saved);
-      } else {
-        // First time: always run wizard
-        const wizard = new CalibrationWizard();
-        profile = await wizard.run();
+        if (saved) {
+          // Offer choice: use saved or recalibrate
+          profile = await this._showProfileChoice(saved);
+        } else {
+          // First time: always run wizard
+          const wizard = new CalibrationWizard();
+          profile = await wizard.run();
+        }
+
+        this._mobileInput.setProfile(profile);
+      } catch (err) {
+        console.error('Calibration wizard error:', err);
+        // Fallback: set a default profile so the game still works
+        this._mobileInput.setProfile({
+          restBeta: 0, restGamma: 0,
+          rollAxis: 'beta', rollSign: 1, rollRange: 30,
+          pitchAxis: 'gamma', pitchSign: 1, pitchRange: 30,
+          shakeThreshold: 12, timestamp: Date.now(),
+        });
       }
 
-      this._mobileInput.setProfile(profile);
       this._mobileInput.active = true;
       this._controlsOverlay.style.display = 'flex';
       if (this._onStart) this._onStart();
