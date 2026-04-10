@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { clamp } from '../utils/math.js';
 import {
   GRAVITY, WING_AREA, AIR_DENSITY, BIRD_MASS,
@@ -6,6 +7,8 @@ import {
   FLAP_THRUST, FLAP_DURATION, FLAP_COOLDOWN, FLAP_LIFT_BONUS,
   MAX_SPEED, TERMINAL_VELOCITY, MIN_FLIGHT_SPEED,
   BANK_RATE, PITCH_RATE, ROLL_RATE, MAX_ROLL, MAX_PITCH,
+  FLIGHT_MODE, WALK_SPEED, LANDING_SPEED_THRESHOLD, LANDING_ALTITUDE_MARGIN,
+  TAKEOFF_IMPULSE, TAKEOFF_DURATION, GROUND_OFFSET, GROUND_EFFECT_HEIGHT,
 } from '../constants.js';
 
 /**
@@ -87,9 +90,21 @@ export class FlightPhysics {
   /**
    * Main physics step — aerodynamic force model.
    * @param {number} dt - delta time in seconds
+   * @param {number} [terrainHeight=0] - ground height at current position
    */
-  update(dt) {
+  update(dt, terrainHeight = 0) {
     const s = this.state;
+
+    // Handle grounded/takeoff modes separately
+    if (s.mode === FLIGHT_MODE.GROUNDED) {
+      this._updateGrounded(dt, terrainHeight);
+      return;
+    }
+    if (s.mode === FLIGHT_MODE.TAKEOFF) {
+      this._updateTakeoff(dt, terrainHeight);
+      return;
+    }
+
     s.updateVectors();
 
     const speed = s.velocity.length();
@@ -101,13 +116,23 @@ export class FlightPhysics {
     // --- 1. Angle of Attack ---
     s.angleOfAttack = this._computeAoA();
 
-    // --- 2. Lift coefficient (with flap bonus) ---
+    // --- 2. Lift coefficient ---
     let CL = this._computeCL(s.angleOfAttack);
+    // Flap lift bonus is now pitch-dependent (see flap thrust section below)
+    // Only a small residual CL bonus during flap to avoid unintended climb at level flight
     if (s.flapPhase > 0) {
-      CL += FLAP_LIFT_BONUS;
+      const pitchFactor = clamp((s.pitch / MAX_PITCH) + 0.3, 0, 1);
+      CL += FLAP_LIFT_BONUS * pitchFactor; // full bonus only when pitched up
     }
     s.liftCoefficient = CL;
     s.isStalling = false;
+
+    // --- Ground effect: up to 30% more lift near terrain/water ---
+    const heightAboveGround = s.altitude - terrainHeight;
+    if (heightAboveGround > 0 && heightAboveGround < GROUND_EFFECT_HEIGHT) {
+      const geFactor = 1.0 + 0.3 * (1 - heightAboveGround / GROUND_EFFECT_HEIGHT);
+      CL *= geFactor;
+    }
 
     // --- 3. Lift force ---
     // Direction: bird's up vector projected perpendicular to velocity
@@ -147,11 +172,16 @@ export class FlightPhysics {
     // --- 6. Gravity ---
     s.velocity.y += GRAVITY * dt;
 
-    // --- 7. Flap thrust (timed downstroke) ---
+    // --- 7. Flap thrust (timed downstroke) — pitch-dependent direction ---
+    // Level flight: mostly forward (80/20). Climbing: even split. Diving: almost all forward.
     if (s.flapPhase > 0) {
       const thrustAccel = FLAP_THRUST * (s.flapStrengthScale || 1) / BIRD_MASS;
-      const thrustDir = s.forward.clone();
-      thrustDir.y += 0.9; // upward component (~55% vertical)
+      // pitchFactor: 0.1 at full dive, 0.5 at level, 1.0 at full climb
+      const pitchFactor = clamp((s.pitch / MAX_PITCH) * 0.5 + 0.5, 0.1, 1.0);
+      const upComponent = pitchFactor * 0.5;           // 0.05..0.5
+      const fwdComponent = 1.0 - upComponent * 0.5;    // 0.75..0.975
+      const thrustDir = s.forward.clone().multiplyScalar(fwdComponent);
+      thrustDir.y += upComponent;
       thrustDir.normalize();
       s.velocity.addScaledVector(thrustDir, thrustAccel * dt);
       s.flapPhase -= dt;
@@ -218,10 +248,109 @@ export class FlightPhysics {
       s.velocity.multiplyScalar(1 - excessDrag * dt);
     }
 
-    // --- 11. Integrate position ---
+    // --- 12. Integrate position ---
     s.position.addScaledVector(s.velocity, dt);
     s.speed = s.velocity.length();
     s.altitude = s.position.y;
+
+    // --- 13. Landing transition check ---
+    // FLYING → LANDING when slow + near ground + not climbing
+    if (s.mode === FLIGHT_MODE.FLYING &&
+        s.speed < LANDING_SPEED_THRESHOLD &&
+        heightAboveGround < LANDING_ALTITUDE_MARGIN &&
+        s.pitch <= 0.05 &&
+        terrainHeight >= 14) { // don't land on water
+      s.mode = FLIGHT_MODE.LANDING;
+    }
+
+    // LANDING → GROUNDED when touching ground
+    if (s.mode === FLIGHT_MODE.LANDING) {
+      // Steer bird toward ground gently
+      if (s.velocity.y > -2) s.velocity.y -= 3.0 * dt;
+      if (heightAboveGround <= GROUND_OFFSET + 0.5) {
+        s.mode = FLIGHT_MODE.GROUNDED;
+        s.velocity.set(0, 0, 0);
+        s.position.y = terrainHeight + GROUND_OFFSET;
+        s.pitch = 0;
+        s.roll = 0;
+        s.speed = 0;
+      }
+    }
+  }
+
+  /**
+   * Grounded physics: walking on terrain.
+   */
+  _updateGrounded(dt, terrainHeight) {
+    const s = this.state;
+    s.updateVectors();
+
+    // Terrain following
+    s.position.y = terrainHeight + GROUND_OFFSET;
+    s.altitude = s.position.y;
+    s.pitch = 0;
+    s.roll = 0;
+    s.angleOfAttack = 0;
+    s.liftCoefficient = 0;
+
+    // Walking: auto-walk forward at slow speed
+    const walkDir = new THREE.Vector3(
+      -Math.sin(s.yaw), 0, -Math.cos(s.yaw),
+    ).normalize();
+    s.velocity.copy(walkDir.multiplyScalar(WALK_SPEED * 0.5));
+    s.position.addScaledVector(s.velocity, dt);
+    s.speed = s.velocity.length();
+  }
+
+  /**
+   * Takeoff: brief upward launch, then transition back to FLYING.
+   */
+  _updateTakeoff(dt, terrainHeight) {
+    const s = this.state;
+    s.takeoffTimer -= dt;
+
+    if (s.takeoffTimer <= 0) {
+      // Transition to flying
+      s.mode = FLIGHT_MODE.FLYING;
+      s.takeoffTimer = 0;
+      return;
+    }
+
+    s.updateVectors();
+
+    // Strong upward + forward impulse during takeoff
+    const progress = 1 - (s.takeoffTimer / TAKEOFF_DURATION); // 0→1
+    s.velocity.y += TAKEOFF_IMPULSE * 2.0 * dt * (1 - progress); // decreasing upward force
+    const fwdDir = new THREE.Vector3(
+      -Math.sin(s.yaw), 0, -Math.cos(s.yaw),
+    ).normalize();
+    s.velocity.addScaledVector(fwdDir, 12.0 * dt); // forward acceleration
+
+    // Pitch up during takeoff
+    s.pitch = 0.3 * (1 - progress);
+    s.roll = 0;
+
+    // Integrate position
+    s.position.addScaledVector(s.velocity, dt);
+    s.speed = s.velocity.length();
+    s.altitude = s.position.y;
+  }
+
+  /**
+   * Trigger takeoff from grounded state.
+   */
+  takeoff() {
+    const s = this.state;
+    if (s.mode !== FLIGHT_MODE.GROUNDED) return;
+    s.mode = FLIGHT_MODE.TAKEOFF;
+    s.takeoffTimer = TAKEOFF_DURATION;
+    s.wingSpread = 1.0;
+    // Initial kick
+    s.velocity.set(0, TAKEOFF_IMPULSE * 0.5, 0);
+    const fwd = new THREE.Vector3(
+      -Math.sin(s.yaw), 0, -Math.cos(s.yaw),
+    ).normalize();
+    s.velocity.addScaledVector(fwd, MIN_FLIGHT_SPEED);
   }
 
   /**
@@ -229,6 +358,9 @@ export class FlightPhysics {
    * @param {number} terrainHeight - ground height at current position
    */
   enforceGround(terrainHeight) {
+    // Skip for grounded/takeoff modes (handled by their own methods)
+    if (this.state.mode === FLIGHT_MODE.GROUNDED || this.state.mode === FLIGHT_MODE.TAKEOFF) return;
+
     // Underwater: allow diving but enforce seabed collision (max 30m below water)
     if (terrainHeight < 14) {
       const seabed = Math.max(terrainHeight, -80) + 1.0; // allow deep canyons

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FLIGHT_MODE } from '../constants.js';
 
 /**
  * 3D Stork model (GLB) with morph-target flight animation.
@@ -92,9 +93,26 @@ export class BirdModel {
 
     // Animation control
     if (this._mixer && this._action) {
+      const mode = state.mode;
       const isFlapping = state.flapPhase > 0;
 
-      if (isFlapping) {
+      if (mode === FLIGHT_MODE.GROUNDED) {
+        // Grounded: very slow animation (wings folded idle) + walking bob
+        this._action.paused = false;
+        this._action.timeScale = 0.05; // near-still wings
+        // Walking bob: gentle up-down oscillation
+        if (state.speed > 0.5) {
+          this._model.position.y += Math.sin(performance.now() * 0.008) * 0.03;
+        }
+      } else if (mode === FLIGHT_MODE.TAKEOFF) {
+        // Takeoff: fast powerful flap
+        this._action.paused = false;
+        this._action.timeScale = 2.5;
+      } else if (mode === FLIGHT_MODE.LANDING) {
+        // Landing: wings spread, slowing down
+        this._action.paused = false;
+        this._action.timeScale = 0.3;
+      } else if (isFlapping) {
         // Flapping: play animation at normal/fast speed
         this._action.paused = false;
         this._action.timeScale = 1.5;

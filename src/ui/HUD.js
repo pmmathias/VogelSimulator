@@ -80,9 +80,15 @@ export class HUD {
       ? '<span style="color:#44ff44">WEBCAM</span>'
       : '<span style="color:#ffaa44">KEYBOARD</span>';
 
+    // Flight mode indicator
+    const MODE_LABELS = ['FLYING', 'LANDING...', 'WALKING', 'TAKING OFF...'];
+    const MODE_COLORS = ['#88aacc', '#ffaa44', '#44dd88', '#ffaa44'];
+    const modeIdx = state.mode ?? 0;
+    const flightModeLabel = `<span style="color:${MODE_COLORS[modeIdx]}">${MODE_LABELS[modeIdx]}</span>`;
+
     this.el.innerHTML = `
       ${stallWarning}
-      ${modeLabel}<br>
+      ${modeLabel} · ${flightModeLabel}<br>
       ALT: ${alt}m<br>
       SPD: ${spd} km/h<br>
       HDG: ${heading}&deg;<br>

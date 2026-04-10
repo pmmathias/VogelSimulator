@@ -67,6 +67,16 @@ export const ROLL_RATE = 3.5;
 export const MAX_ROLL = 1.0;             // ~57° max bank
 export const MAX_PITCH = 0.7;            // ~40° max pitch
 
+// Flight modes
+export const FLIGHT_MODE = { FLYING: 0, LANDING: 1, GROUNDED: 2, TAKEOFF: 3 };
+export const WALK_SPEED = 2.0;              // m/s max walking speed
+export const LANDING_SPEED_THRESHOLD = 6;   // m/s — below this + near ground → land
+export const LANDING_ALTITUDE_MARGIN = 3.0; // meters above terrain to trigger landing
+export const TAKEOFF_IMPULSE = 15;          // m/s upward kick on takeoff
+export const TAKEOFF_DURATION = 0.5;        // seconds of takeoff animation
+export const GROUND_OFFSET = 0.3;           // meters above terrain when grounded
+export const GROUND_EFFECT_HEIGHT = 5.0;    // meters — ground effect zone
+
 // Camera
 export const FOG_NEAR = 600;
 export const FOG_FAR = 5000;

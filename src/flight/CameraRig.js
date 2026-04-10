@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CHASE_DISTANCE, CHASE_HEIGHT, CAMERA_FOV } from '../constants.js';
+import { CHASE_DISTANCE, CHASE_HEIGHT, CAMERA_FOV, FLIGHT_MODE } from '../constants.js';
 
 /**
  * Smooth third-person chase camera.
@@ -19,10 +19,16 @@ export class CameraRig {
   update(dt) {
     const s = this.state;
 
+    const grounded = s.mode === FLIGHT_MODE.GROUNDED || s.mode === FLIGHT_MODE.LANDING;
+
+    // Camera distance/height: tighter and lower when grounded
+    const chaseDist = grounded ? CHASE_DISTANCE * 0.5 : CHASE_DISTANCE;
+    const chaseHeight = grounded ? CHASE_HEIGHT * 0.4 : CHASE_HEIGHT;
+
     // Desired position: behind and above bird
     const desiredPos = s.position.clone()
-      .addScaledVector(s.forward, -CHASE_DISTANCE)
-      .add(new THREE.Vector3(0, CHASE_HEIGHT, 0));
+      .addScaledVector(s.forward, -chaseDist)
+      .add(new THREE.Vector3(0, chaseHeight, 0));
 
     // Desired look target: bird position
     const desiredLook = s.position.clone();

@@ -23,6 +23,7 @@ let MobileInput, isMobileDevice, MobileUI;
 import {
   CAMERA_FOV, CAMERA_NEAR, CAMERA_FAR,
   FOG_NEAR, FOG_FAR,
+  FLIGHT_MODE,
 } from './constants.js';
 
 // --- Renderer & Scene ---
@@ -260,19 +261,33 @@ loop.onUpdate((dt) => {
       input.wingSpread = mobileInput.wingSpread;
     }
 
-    // Apply controls to physics
-    flightState.wingSpread = input.wingSpread;
-    flightPhysics.flap(input.lift);
-    flightPhysics.applyRoll(input.roll, dt);
-    flightPhysics.applyPitch(input.pitch, dt);
-    flightPhysics.update(dt);
-
-    // Terrain collision
+    // Terrain height at current position (needed for physics + collision)
     const groundY = getTerrainHeight(
       flightState.position.x,
       flightState.position.z,
       world.arcs,
     );
+
+    // Apply controls to physics (mode-dependent)
+    const mode = flightState.mode;
+
+    if (mode === FLIGHT_MODE.GROUNDED) {
+      // Grounded: flap triggers takeoff, roll turns on ground
+      if (input.lift > 0.5) {
+        flightPhysics.takeoff();
+      } else {
+        // Ground turning: yaw from roll input
+        flightState.yaw += input.roll * 2.0 * dt;
+      }
+    } else {
+      // Flying/Landing/Takeoff: normal controls
+      flightState.wingSpread = input.wingSpread;
+      flightPhysics.flap(input.lift);
+      flightPhysics.applyRoll(input.roll, dt);
+      flightPhysics.applyPitch(input.pitch, dt);
+    }
+
+    flightPhysics.update(dt, groundY);
     flightPhysics.enforceGround(groundY);
 
     // Camera follow

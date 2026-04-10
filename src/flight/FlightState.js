@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FLIGHT_MODE } from '../constants.js';
 
 /**
  * Holds the bird's flight state: position, velocity, orientation.
@@ -19,6 +20,10 @@ export class FlightState {
     // Derived values
     this.speed = 10;
     this.altitude = 60;
+
+    // Flight mode state machine: FLYING → LANDING → GROUNDED → TAKEOFF → FLYING
+    this.mode = FLIGHT_MODE.FLYING;
+    this.takeoffTimer = 0;  // counts down during TAKEOFF
 
     // Aerodynamic state (computed each frame, exposed for HUD/debug)
     this.angleOfAttack = 0;
