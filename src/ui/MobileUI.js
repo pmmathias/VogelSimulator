@@ -1,4 +1,5 @@
 import { requestFullscreenLandscape } from '../core/MobileInput.js';
+import { CalibrationWizard } from './CalibrationWizard.js';
 
 /**
  * Mobile UI: start screen with PWA fullscreen guide, controls overlay, orientation warning.
@@ -62,17 +63,80 @@ export class MobileUI {
     // PLAY button
     document.getElementById('mobile-start-btn').addEventListener('click', async () => {
       requestFullscreenLandscape();
-      await this._mobileInput.requestPermission();
-      this._mobileInput.active = true;
-      this._mobileInput.calibrate(); // calibrate at PLAY tap position
+      const permOk = await this._mobileInput.requestPermission();
+      if (!permOk) return;
+
       this._startScreen.style.display = 'none';
-      this._controlsOverlay.style.display = 'block';
+
+      // Check for saved calibration profile
+      const saved = CalibrationWizard.loadProfile();
+      let profile;
+
+      if (saved) {
+        // Offer choice: use saved or recalibrate
+        profile = await this._showProfileChoice(saved);
+      } else {
+        // First time: always run wizard
+        const wizard = new CalibrationWizard();
+        profile = await wizard.run();
+      }
+
+      this._mobileInput.setProfile(profile);
+      this._mobileInput.active = true;
+      this._controlsOverlay.style.display = 'flex';
       if (this._onStart) this._onStart();
     });
 
     // Fullscreen guide button
     document.getElementById('mobile-fs-guide-btn').addEventListener('click', () => {
       this._fsGuide.style.display = 'flex';
+    });
+  }
+
+  /**
+   * Show choice dialog: use saved profile or recalibrate.
+   * @returns {Promise<object>} chosen profile
+   */
+  _showProfileChoice(savedProfile) {
+    return new Promise((resolve) => {
+      const dialog = document.createElement('div');
+      dialog.style.cssText = `
+        position:fixed; inset:0; z-index:700;
+        background:linear-gradient(135deg, #0a1628 0%, #1a2a4a 50%, #0a1628 100%);
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        color:white; font-family:sans-serif; text-align:center; padding:20px;
+      `;
+      dialog.innerHTML = `
+        <div style="font-size:48px; margin-bottom:16px;">🎮</div>
+        <h2 style="font-size:20px; font-weight:bold; color:#60c0ff; margin-bottom:8px;">
+          Kalibrierung vorhanden
+        </h2>
+        <p style="color:#88aacc; font-size:13px; margin-bottom:24px;">
+          Letzte Kalibrierung verwenden<br>oder neu kalibrieren?
+        </p>
+        <button id="calib-use-saved" style="
+          background:linear-gradient(135deg, #2080cc, #40a0ff);
+          color:white; border:none; padding:14px 36px; border-radius:12px;
+          font-size:16px; font-weight:bold; cursor:pointer; margin-bottom:12px;
+          box-shadow:0 4px 20px rgba(32,128,204,0.4); width:240px;
+        ">▶ Sofort spielen</button>
+        <button id="calib-redo" style="
+          background:none; border:1px solid rgba(255,255,255,0.25);
+          color:rgba(255,255,255,0.6); padding:10px 28px; border-radius:10px;
+          font-size:14px; cursor:pointer; width:240px;
+        ">🔄 Neu kalibrieren</button>
+      `;
+      document.body.appendChild(dialog);
+
+      document.getElementById('calib-use-saved').addEventListener('click', () => {
+        dialog.remove();
+        resolve(savedProfile);
+      });
+      document.getElementById('calib-redo').addEventListener('click', async () => {
+        dialog.remove();
+        const wizard = new CalibrationWizard();
+        resolve(await wizard.run());
+      });
     });
   }
 
@@ -145,14 +209,31 @@ export class MobileUI {
   _createControlsOverlay() {
     this._controlsOverlay = document.createElement('div');
     this._controlsOverlay.style.cssText = `
-      position:fixed; bottom:8px; left:50%; transform:translateX(-50%);
-      color:rgba(255,255,255,0.4); font-family:sans-serif; font-size:10px;
-      text-align:center; pointer-events:none; z-index:300; display:none;
+      position:fixed; bottom:8px; left:0; right:0;
+      display:none; align-items:center; justify-content:center; gap:12px;
+      z-index:300; font-family:sans-serif;
     `;
     this._controlsOverlay.innerHTML = `
-      Neigen: Steuern &nbsp;|&nbsp; Schütteln: Flattern &nbsp;|&nbsp; 2× Tippen: Kalibrieren
+      <span style="color:rgba(255,255,255,0.35); font-size:10px; pointer-events:none;">
+        Neigen: Steuern &nbsp;|&nbsp; Schütteln: Flattern &nbsp;|&nbsp; 2× Tippen: Nullpunkt
+      </span>
+      <button id="mobile-recalib-btn" style="
+        background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15);
+        color:rgba(255,255,255,0.5); padding:4px 10px; border-radius:6px;
+        font-size:10px; cursor:pointer;
+      ">🔄 Kalibrieren</button>
     `;
     document.body.appendChild(this._controlsOverlay);
+
+    // Full recalibration button
+    this._controlsOverlay.addEventListener('click', async (e) => {
+      if (e.target.id !== 'mobile-recalib-btn') return;
+      this._mobileInput.active = false;
+      const wizard = new CalibrationWizard();
+      const profile = await wizard.run();
+      this._mobileInput.setProfile(profile);
+      this._mobileInput.active = true;
+    });
   }
 
   _createOrientationWarning() {

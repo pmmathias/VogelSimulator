@@ -21,15 +21,13 @@ export class MobileInput {
     this.lift = 0;
     this.wingSpread = 1;
 
-    // Calibration — ONLY triggered by PLAY tap or double-tap
-    this._calibrated = false;
+    // Calibration profile (set by CalibrationWizard)
+    this._profile = null;
     this._pendingCalibration = false;
-    this._restBeta = 0;
-    this._restGamma = 0;
 
     // Shake
     this._lastAccel = { x: 0, y: 0, z: 0 };
-    this._shakeThreshold = 12; // lowered from 20 — easier to trigger
+    this._shakeThreshold = 12;
     this._lastShakeTime = 0;
     this._flapBurst = 0;
     this._flapBurstTotal = 90;
@@ -77,70 +75,69 @@ export class MobileInput {
     console.log('Mobile gyroscope input active');
   }
 
+  /**
+   * Apply a calibration profile from CalibrationWizard.
+   * @param {object} profile
+   */
+  setProfile(profile) {
+    this._profile = profile;
+    this._shakeThreshold = profile.shakeThreshold ?? 12;
+    this._smoothPitch = 0;
+    this._smoothRoll = 0;
+    console.log('MobileInput: profile applied', profile);
+  }
+
   _onOrientation(e) {
     if (!this.active) return;
 
-    const beta = e.beta;   // -180..180 (front/back tilt, 0=flat on table)
+    const beta = e.beta;   // -180..180 (front/back tilt)
     const gamma = e.gamma; // -90..90 (left/right tilt)
 
     if (beta === null || gamma === null) return;
 
-    // Only calibrate when explicitly triggered (PLAY button or double-tap)
+    // Quick recalibrate (double-tap) — update rest position within profile
     if (this._pendingCalibration) {
-      this._restBeta = beta;
-      this._restGamma = gamma;
-      this._calibrated = true;
+      if (this._profile) {
+        this._profile.restBeta = beta;
+        this._profile.restGamma = gamma;
+      }
       this._pendingCalibration = false;
-      console.log(`Calibrated: beta=${beta.toFixed(1)}°, gamma=${gamma.toFixed(1)}°`);
+      this._smoothPitch = 0;
+      this._smoothRoll = 0;
+      console.log(`Recalibrated rest: beta=${beta.toFixed(1)}°, gamma=${gamma.toFixed(1)}°`);
     }
 
-    // If not yet calibrated, don't move (wait for PLAY or double-tap)
-    if (!this._calibrated) return;
+    // Need a profile to know which axis maps to what
+    if (!this._profile) return;
 
     // Delta from calibrated rest position
-    const dBeta = beta - this._restBeta;
-    const dGamma = gamma - this._restGamma;
+    const dBeta = beta - this._profile.restBeta;
+    const dGamma = gamma - this._profile.restGamma;
 
-    // In landscape on iPhone (home button right = angle 90):
-    // - Tilting phone toward you increases gamma → should be CLIMB (positive pitch)
-    // - Tilting phone away decreases gamma → DIVE (negative pitch)
-    // - Tilting phone right increases beta → TURN RIGHT (negative roll for banking)
-    // - Tilting phone left decreases beta → TURN LEFT (positive roll)
-    //
-    // In landscape (home button left = angle -90): axes are inverted
+    // Use calibration profile: the wizard learned which axis and direction
+    // maps to roll (left/right) and pitch (climb/dive) for this device
+    const rollRaw = this._profile.rollAxis === 'beta' ? dBeta : dGamma;
+    const pitchRaw = this._profile.pitchAxis === 'beta' ? dBeta : dGamma;
 
-    const angle = screen.orientation?.angle ?? window.orientation ?? 0;
+    const rollDeg = rollRaw * this._profile.rollSign;
+    const pitchDeg = pitchRaw * this._profile.pitchSign;
 
-    let pitchDeg, rollDeg;
-    if (angle === 90 || angle === -270) {
-      pitchDeg = dGamma;   // toward you = positive gamma delta = climb
-      rollDeg = dBeta;
-    } else if (angle === -90 || angle === 270) {
-      pitchDeg = -dGamma;
-      rollDeg = -dBeta;
-    } else {
-      // Portrait fallback
-      pitchDeg = -dBeta;
-      rollDeg = dGamma;
-    }
+    // Normalize using calibrated range (user's actual tilt range)
+    const normPitch = clamp(pitchDeg / this._profile.pitchRange, -1, 1);
+    const normRoll = clamp(rollDeg / this._profile.rollRange, -1, 1);
 
-    // Very forgiving tilt mapping:
-    // 60° = full deflection, quintic curve (x⁵) = ultra gentle near center
-    const normPitch = clamp(pitchDeg / 60, -1, 1);
-    const normRoll = clamp(rollDeg / 60, -1, 1);
+    // Quadratic curve: gentle near center, strong at extremes
+    const rawPitch = Math.pow(Math.abs(normPitch), 2) * Math.sign(normPitch) * 0.6;
+    const rawRoll = Math.pow(Math.abs(normRoll), 2) * Math.sign(normRoll) * 0.6;
 
-    // Quintic curve: x⁵ = extremely gentle near center, only strong at extremes
-    const rawPitch = Math.pow(Math.abs(normPitch), 3) * Math.sign(normPitch) * 0.6;
-    const rawRoll = Math.pow(Math.abs(normRoll), 3) * Math.sign(normRoll) * 0.6;
-
-    // Very slow smoothing = no sudden movements
-    this._smoothPitch += (rawPitch - this._smoothPitch) * 0.04;
-    this._smoothRoll += (rawRoll - this._smoothRoll) * 0.04;
+    // Responsive smoothing (3× faster than before)
+    this._smoothPitch += (rawPitch - this._smoothPitch) * 0.12;
+    this._smoothRoll += (rawRoll - this._smoothRoll) * 0.12;
 
     this.pitch = this._smoothPitch;
     this.roll = this._smoothRoll;
 
-    // Wing spread
+    // Wing spread: tuck wings when diving
     if (this.pitch < -0.15) {
       this.wingSpread = clamp(1 + this.pitch * 2.5, 0, 1);
     } else {
@@ -180,8 +177,8 @@ export class MobileInput {
   }
 
   /**
-   * Schedule calibration on next orientation event.
-   * Called by: PLAY button tap + double-tap. Nothing else.
+   * Quick recalibrate: updates rest position on next orientation event.
+   * Called by double-tap during gameplay.
    */
   calibrate() {
     this._pendingCalibration = true;
