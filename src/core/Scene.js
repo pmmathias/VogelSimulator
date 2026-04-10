@@ -25,32 +25,27 @@ export function createScene(renderer) {
   const sunPosition = new THREE.Vector3().setFromSphericalCoords(1, phi, theta);
   skyUniforms.sunPosition.value.copy(sunPosition);
 
-  // Generate env map from procedural sky for reflections
+  // Generate env map from procedural sky for background + reflections
   const pmremGenerator = new THREE.PMREMGenerator(renderer);
   pmremGenerator.compileEquirectangularShader();
   const skyScene = new THREE.Scene();
   skyScene.add(sky.clone());
   const skyEnvMap = pmremGenerator.fromScene(skyScene, 0, 0.1, 1000).texture;
+  scene.background = skyEnvMap;
   scene.environment = skyEnvMap;
 
-  // Load HDR sky map for background (richer sky with real clouds)
+  // Load HDR for richer reflections on water/materials (not as background)
   new RGBELoader().load('textures/sky.hdr', (hdrTexture) => {
     hdrTexture.mapping = THREE.EquirectangularReflectionMapping;
     const hdrEnvMap = pmremGenerator.fromEquirectangular(hdrTexture).texture;
-    scene.background = hdrEnvMap;
-    scene.environment = hdrEnvMap; // also use for reflections
+    scene.environment = hdrEnvMap; // reflections only, NOT background
     hdrTexture.dispose();
     pmremGenerator.dispose();
   }, undefined, () => {
-    // Fallback: use procedural sky if HDR fails to load
-    scene.background = skyEnvMap;
     pmremGenerator.dispose();
   });
 
-  // Temporarily set procedural sky as background until HDR loads
-  scene.background = skyEnvMap;
-
-  renderer.toneMappingExposure = 0.6;
+  renderer.toneMappingExposure = 1.0;
 
   // Fog with warm horizon tint
   const fogColor = new THREE.Color(0xb0d0e8);
