@@ -110,8 +110,6 @@ export class InputManager {
     if (this._keys['ArrowLeft']) turn = 1;
     if (this._keys['ArrowRight']) turn = -1;
     const sprint = this._keys['ShiftLeft'] || this._keys['ShiftRight'];
-    const jump = this._jumpPressed;
-    this._jumpPressed = false; // consume
-    return { forward, strafe, turn, jump, sprint };
+    return { forward, strafe, turn, sprint };
   }
 }

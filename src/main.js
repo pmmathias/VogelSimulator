@@ -277,8 +277,8 @@ loop.onUpdate((dt) => {
     if (mode === FLIGHT_MODE.GROUNDED) {
       // Ground controls: WASD movement, arrows turn, space jump, shift sprint
       groundInput = input.getGroundInput();
-      // Flap on mobile (shake) → takeoff
-      if (mobileInput && mobileInput.active && input.lift > 0.5) {
+      // Flap (Space / shake / gesture) → takeoff
+      if (input.lift > 0.5) {
         flightPhysics.takeoff();
       }
     } else {

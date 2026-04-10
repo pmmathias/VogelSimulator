@@ -338,21 +338,8 @@ export class FlightPhysics {
     s.position.addScaledVector(s.velocity, dt);
     s.speed = s.velocity.length();
 
-    // Jump
-    if (groundInput.jump) {
-      s.velocity.y = JUMP_IMPULSE;
-      s.position.y += 0.1; // small kick to leave ground check
-    }
-
-    // Gravity when airborne (after jump)
-    if (s.position.y > terrainHeight + GROUND_OFFSET + 0.2) {
-      s.velocity.y += GRAVITY * dt;
-      s.position.y += s.velocity.y * dt;
-    } else {
-      s.position.y = terrainHeight + GROUND_OFFSET;
-      s.velocity.y = 0;
-    }
-
+    // Snap to terrain
+    s.position.y = terrainHeight + GROUND_OFFSET;
     s.altitude = s.position.y;
   }
 
