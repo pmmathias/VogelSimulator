@@ -105,8 +105,8 @@ export class InputManager {
     let forward = 0, strafe = 0, turn = 0;
     if (this._keys['KeyW'] || this._keys['ArrowUp']) forward = 1;
     if (this._keys['KeyS'] || this._keys['ArrowDown']) forward = -1;
-    if (this._keys['KeyA']) strafe = -1;
-    if (this._keys['KeyD']) strafe = 1;
+    if (this._keys['KeyA']) strafe = 1;
+    if (this._keys['KeyD']) strafe = -1;
     if (this._keys['ArrowLeft']) turn = 1;
     if (this._keys['ArrowRight']) turn = -1;
     const sprint = this._keys['ShiftLeft'] || this._keys['ShiftRight'];
