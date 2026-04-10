@@ -8,6 +8,8 @@
 
 **A browser-based 3D bird flight simulator with real-time webcam gesture control.** Flap your arms to gain altitude, spread them to glide, tuck them to dive — all tracked via your webcam. No installation needed beyond `npm install`.
 
+**[Play now in your browser](https://pmmathias.github.io/VogelSimulator/)** — no install required, works on desktop and mobile.
+
 > 📖 **Read the full story:** [How we built a gesture-controlled bird flight simulator with AI](https://ki-mathias.de/vogelsimulator.html) — development blog with behind-the-scenes insights, architecture decisions, and lessons learned.
 
 ![Stork soaring over the island](blog-screenshots/video-stork-soaring.jpg)
