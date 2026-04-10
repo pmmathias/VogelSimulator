@@ -52,9 +52,10 @@ export function createCloudLayer() {
 
   // Cloud layers: low (wispy), mid (main), high (thin cirrus)
   const layers = [
-    { count: Math.floor(40 * mobileFactor), yMin: 80, yMax: 140, scaleMin: 60, scaleMax: 180, opacity: 0.3, flat: 0.25 },
-    { count: Math.floor(CLOUD_COUNT * mobileFactor), yMin: CLOUD_HEIGHT - 50, yMax: CLOUD_HEIGHT + 80, scaleMin: 120, scaleMax: 350, opacity: 0.6, flat: 0.35 },
-    { count: Math.floor(60 * mobileFactor), yMin: 350, yMax: 500, scaleMin: 200, scaleMax: 600, opacity: 0.2, flat: 0.15 },
+    { count: Math.floor(60 * mobileFactor), yMin: 60, yMax: 130, scaleMin: 60, scaleMax: 200, opacity: 0.25, flat: 0.2 },
+    { count: Math.floor(200 * mobileFactor), yMin: 140, yMax: 280, scaleMin: 100, scaleMax: 400, opacity: 0.5, flat: 0.3 },
+    { count: Math.floor(120 * mobileFactor), yMin: 280, yMax: 420, scaleMin: 150, scaleMax: 500, opacity: 0.4, flat: 0.25 },
+    { count: Math.floor(80 * mobileFactor), yMin: 420, yMax: 600, scaleMin: 250, scaleMax: 700, opacity: 0.2, flat: 0.15 },
   ];
 
   for (const layer of layers) {
