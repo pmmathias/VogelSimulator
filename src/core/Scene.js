@@ -50,7 +50,7 @@ export function createScene(renderer) {
   // Temporarily set procedural sky as background until HDR loads
   scene.background = skyEnvMap;
 
-  renderer.toneMappingExposure = 0.35;
+  renderer.toneMappingExposure = 0.15;
 
   // Fog with warm horizon tint
   const fogColor = new THREE.Color(0xb0d0e8);
