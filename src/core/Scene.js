@@ -45,7 +45,7 @@ export function createScene(renderer) {
     pmremGenerator.dispose();
   });
 
-  renderer.toneMappingExposure = 1.0;
+  renderer.toneMappingExposure = 0.01;
 
   // Fog with warm horizon tint
   const fogColor = new THREE.Color(0xb0d0e8);
