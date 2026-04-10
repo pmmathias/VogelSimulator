@@ -2,7 +2,7 @@
   "name": "VogelSimulator",
   "short_name": "VogelSim",
   "description": "Fly like a bird — gesture-controlled 3D flight simulator",
-  "start_url": "/vogelsimulator/",
+  "start_url": "/VogelSimulator/",
   "display": "fullscreen",
   "orientation": "landscape",
   "background_color": "#0a1628",
