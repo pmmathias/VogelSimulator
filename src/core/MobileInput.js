@@ -126,20 +126,26 @@ export class MobileInput {
     const normPitch = clamp(pitchDeg / this._profile.pitchRange, -1, 1);
     const normRoll = clamp(rollDeg / this._profile.rollRange, -1, 1);
 
-    // Quadratic curve: gentle near center, strong at extremes
-    const rawPitch = Math.pow(Math.abs(normPitch), 2) * Math.sign(normPitch) * 0.6;
-    const rawRoll = Math.pow(Math.abs(normRoll), 2) * Math.sign(normRoll) * 0.6;
+    // Small dead zone (5%) then linear response — fully proportional, no curve
+    const deadZone = 0.05;
+    const applyDeadZone = (v) => {
+      const abs = Math.abs(v);
+      return abs < deadZone ? 0 : Math.sign(v) * ((abs - deadZone) / (1 - deadZone));
+    };
+    const rawPitch = applyDeadZone(normPitch) * 0.8;
+    const rawRoll = applyDeadZone(normRoll) * 0.8;
 
-    // Responsive smoothing (3× faster than before)
-    this._smoothPitch += (rawPitch - this._smoothPitch) * 0.12;
-    this._smoothRoll += (rawRoll - this._smoothRoll) * 0.12;
+    // Responsive smoothing
+    this._smoothPitch += (rawPitch - this._smoothPitch) * 0.15;
+    this._smoothRoll += (rawRoll - this._smoothRoll) * 0.15;
 
     this.pitch = this._smoothPitch;
     this.roll = this._smoothRoll;
 
-    // Wing spread: tuck wings when diving
-    if (this.pitch < -0.15) {
-      this.wingSpread = clamp(1 + this.pitch * 2.5, 0, 1);
+    // Wing spread: only tuck wings at EXTREME dive (> 70% negative pitch)
+    // Gentle negative pitch = normal descent with wings spread
+    if (this.pitch < -0.55) {
+      this.wingSpread = clamp(1 + (this.pitch + 0.55) * 4.0, 0, 1);
     } else {
       this.wingSpread = 1;
     }
