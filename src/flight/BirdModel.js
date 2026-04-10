@@ -82,11 +82,20 @@ export class BirdModel {
     this._model.position.copy(this._smoothPos);
 
     // Smooth orientation via quaternion slerp
+    const grounded = state.mode === FLIGHT_MODE.GROUNDED;
+    const landing = state.mode === FLIGHT_MODE.LANDING;
+
     const lookTarget = this._smoothPos.clone().add(state.forward);
     const tempObj = new THREE.Object3D();
     tempObj.position.copy(this._smoothPos);
     tempObj.lookAt(lookTarget);
     tempObj.rotateZ(-state.roll);
+
+    if (grounded || landing) {
+      // Tilt bird upright: rotate nose up ~55° so it looks like it's standing
+      const standAngle = grounded ? -0.95 : -0.5; // radians (~55° / ~30°)
+      tempObj.rotateX(standAngle);
+    }
 
     this._smoothQuat.slerp(tempObj.quaternion, followRate);
     this._model.quaternion.copy(this._smoothQuat);
@@ -97,12 +106,16 @@ export class BirdModel {
       const isFlapping = state.flapPhase > 0;
 
       if (mode === FLIGHT_MODE.GROUNDED) {
-        // Grounded: very slow animation (wings folded idle) + walking bob
-        this._action.paused = false;
-        this._action.timeScale = 0.05; // near-still wings
-        // Walking bob: gentle up-down oscillation
-        if (state.speed > 0.5) {
-          this._model.position.y += Math.sin(performance.now() * 0.008) * 0.03;
+        // Grounded: freeze at wings-up frame (most folded position in flap cycle)
+        this._action.paused = true;
+        this._action.time = 0.95; // wings-up position in the flap cycle
+        this._action.weight = 1;
+        this._mixer.update(0);
+        // Walking bob: visible up-down + forward-lean oscillation
+        if (state.speed > 0.3) {
+          const t = performance.now() * 0.006;
+          this._model.position.y += Math.abs(Math.sin(t)) * 0.25;
+          this._model.rotateX(Math.sin(t * 2) * 0.06);
         }
       } else if (mode === FLIGHT_MODE.TAKEOFF) {
         // Takeoff: fast powerful flap

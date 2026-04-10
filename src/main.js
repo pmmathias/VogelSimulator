@@ -115,6 +115,8 @@ const hud = new HUD();
 const autopilot = new Autopilot();
 // Expose scene + autopilot for Playwright/external control
 window.__scene = scene;
+window.__flightState = flightState;
+window.__flightPhysics = flightPhysics;
 window.__startAutopilot = (seq) => {
   if (!flightMode) {
     // Auto-enter flight mode
