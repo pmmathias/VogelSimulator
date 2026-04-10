@@ -14,10 +14,8 @@ function generateCloudCanvas() {
   canvas.height = size;
   const ctx = canvas.getContext('2d');
 
-  // Transparent background
   ctx.clearRect(0, 0, size, size);
 
-  // Draw soft white blobs
   const blobCount = 8 + Math.floor(Math.random() * 6);
   for (let i = 0; i < blobCount; i++) {
     const x = size / 2 + (Math.random() - 0.5) * size * 0.5;
@@ -37,45 +35,52 @@ function generateCloudCanvas() {
 }
 
 /**
- * Create a cloud layer with scattered sprites.
- * @returns {{ group: THREE.Group, update: (dt: number) => void }}
+ * Create multi-layer cloud system for depth and height feeling.
+ * Low clouds (100-150m), mid clouds (200m), high clouds (350-500m).
  */
 export function createCloudLayer() {
   const group = new THREE.Group();
   group.name = 'clouds';
 
-  // Generate a few cloud texture variants
   const cloudTextures = [];
   for (let i = 0; i < 4; i++) {
-    const canvas = generateCloudCanvas();
-    const tex = new THREE.CanvasTexture(canvas);
-    cloudTextures.push(tex);
+    cloudTextures.push(new THREE.CanvasTexture(generateCloudCanvas()));
   }
 
   const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
-  const cloudLimit = IS_MOBILE ? Math.floor(CLOUD_COUNT * 0.3) : CLOUD_COUNT;
-  for (let i = 0; i < cloudLimit; i++) {
-    const tex = cloudTextures[Math.floor(Math.random() * cloudTextures.length)];
-    const material = new THREE.SpriteMaterial({
-      map: tex,
-      transparent: true,
-      opacity: 0.6 + Math.random() * 0.3,
-      depthWrite: false,
-    });
+  const mobileFactor = IS_MOBILE ? 0.3 : 1;
 
-    const sprite = new THREE.Sprite(material);
-    const scale = randomRange(120, 350);
-    sprite.scale.set(scale, scale * 0.35, 1);
-    sprite.position.set(
-      randomRange(-CLOUD_SPREAD, CLOUD_SPREAD),
-      CLOUD_HEIGHT + randomRange(-50, 80),
-      randomRange(-CLOUD_SPREAD, CLOUD_SPREAD),
-    );
+  // Cloud layers: low (wispy), mid (main), high (thin cirrus)
+  const layers = [
+    { count: Math.floor(40 * mobileFactor), yMin: 80, yMax: 140, scaleMin: 60, scaleMax: 180, opacity: 0.3, flat: 0.25 },
+    { count: Math.floor(CLOUD_COUNT * mobileFactor), yMin: CLOUD_HEIGHT - 50, yMax: CLOUD_HEIGHT + 80, scaleMin: 120, scaleMax: 350, opacity: 0.6, flat: 0.35 },
+    { count: Math.floor(60 * mobileFactor), yMin: 350, yMax: 500, scaleMin: 200, scaleMax: 600, opacity: 0.2, flat: 0.15 },
+  ];
 
-    group.add(sprite);
+  for (const layer of layers) {
+    for (let i = 0; i < layer.count; i++) {
+      const tex = cloudTextures[Math.floor(Math.random() * cloudTextures.length)];
+      const material = new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        opacity: layer.opacity + Math.random() * 0.2,
+        depthWrite: false,
+      });
+
+      const sprite = new THREE.Sprite(material);
+      const scale = randomRange(layer.scaleMin, layer.scaleMax);
+      sprite.scale.set(scale, scale * layer.flat, 1);
+      sprite.position.set(
+        randomRange(-CLOUD_SPREAD, CLOUD_SPREAD),
+        randomRange(layer.yMin, layer.yMax),
+        randomRange(-CLOUD_SPREAD, CLOUD_SPREAD),
+      );
+
+      group.add(sprite);
+    }
   }
 
-  // Slow drift animation
+  // Drift speeds per cloud
   const driftSpeeds = group.children.map(() => ({
     x: randomRange(-2, 2),
     z: randomRange(-1, 1),
@@ -88,7 +93,6 @@ export function createCloudLayer() {
       cloud.position.x += speed.x * dt;
       cloud.position.z += speed.z * dt;
 
-      // Wrap around world bounds
       if (cloud.position.x > CLOUD_SPREAD) cloud.position.x = -CLOUD_SPREAD;
       if (cloud.position.x < -CLOUD_SPREAD) cloud.position.x = CLOUD_SPREAD;
       if (cloud.position.z > CLOUD_SPREAD) cloud.position.z = -CLOUD_SPREAD;
