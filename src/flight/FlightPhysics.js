@@ -358,8 +358,8 @@ export class FlightPhysics {
    * @param {number} terrainHeight - ground height at current position
    */
   enforceGround(terrainHeight) {
-    // Skip for grounded/takeoff modes (handled by their own methods)
-    if (this.state.mode === FLIGHT_MODE.GROUNDED || this.state.mode === FLIGHT_MODE.TAKEOFF) return;
+    // Skip for grounded/takeoff/landing modes (handled by their own methods)
+    if (this.state.mode !== FLIGHT_MODE.FLYING) return;
 
     // Underwater: allow diving but enforce seabed collision (max 30m below water)
     if (terrainHeight < 14) {
