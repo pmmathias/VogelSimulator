@@ -74,7 +74,7 @@ export const LANDING_SPEED_THRESHOLD = 14;  // m/s — below this + near ground 
 export const LANDING_ALTITUDE_MARGIN = 4.0; // meters above terrain to trigger landing
 export const TAKEOFF_IMPULSE = 15;          // m/s upward kick on takeoff
 export const TAKEOFF_DURATION = 0.5;        // seconds of takeoff animation
-export const GROUND_OFFSET = 0.3;           // meters above terrain when grounded
+export const GROUND_OFFSET = 1.2;           // meters above terrain when grounded
 export const GROUND_EFFECT_HEIGHT = 5.0;    // meters — ground effect zone
 
 // Camera
