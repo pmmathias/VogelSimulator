@@ -1,8 +1,5 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { createRenderer } from './core/Renderer.js';
 import { createScene } from './core/Scene.js';
 import { GameLoop } from './core/GameLoop.js';
@@ -42,20 +39,6 @@ const camera = new THREE.PerspectiveCamera(
 );
 camera.position.set(0, 80, 150);
 window.__camera = camera; // for Renderer.js resize handler
-
-// --- Post-processing: bloom for sun glare ---
-const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
-const isMob = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
-if (!isMob) {
-  const bloom = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.2,   // strength — very subtle glow
-    0.4,   // radius
-    0.92,  // threshold — only the brightest spots bloom (sun only)
-  );
-  composer.addPass(bloom);
-}
 
 // --- OrbitControls (debug mode) ---
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -320,7 +303,7 @@ loop.onUpdate((dt) => {
     controls.update();
   }
 
-  composer.render();
+  renderer.render(scene, camera);
 });
 loop.start();
 
