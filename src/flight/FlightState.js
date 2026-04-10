@@ -24,6 +24,7 @@ export class FlightState {
     // Flight mode state machine: FLYING → LANDING → GROUNDED → TAKEOFF → FLYING
     this.mode = FLIGHT_MODE.FLYING;
     this.takeoffTimer = 0;  // counts down during TAKEOFF
+    this.landingTimer = 0;  // counts up during LANDING flare
 
     // Aerodynamic state (computed each frame, exposed for HUD/debug)
     this.angleOfAttack = 0;

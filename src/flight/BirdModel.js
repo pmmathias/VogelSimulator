@@ -91,13 +91,19 @@ export class BirdModel {
     tempObj.lookAt(lookTarget);
     tempObj.rotateZ(-state.roll);
 
-    if (grounded || landing) {
-      // Tilt bird upright: rotate nose up ~55° so it looks like it's standing
-      const standAngle = grounded ? -0.95 : -0.5; // radians (~55° / ~30°)
-      tempObj.rotateX(standAngle);
+    if (grounded) {
+      // Standing upright: ~55° nose-up
+      tempObj.rotateX(-0.95);
+    } else if (landing) {
+      // Landing flare: gradually rotate from flight pose to upright
+      // landingTimer goes 0→1.5s, progress 0→1
+      const progress = Math.min((state.landingTimer || 0) / 1.5, 1);
+      tempObj.rotateX(-0.95 * progress); // smoothly tilt upright
     }
 
-    this._smoothQuat.slerp(tempObj.quaternion, followRate);
+    // Slower slerp during landing for smooth rotation transition
+    const orientRate = landing ? 1 - Math.exp(-1.5 * dt) : followRate;
+    this._smoothQuat.slerp(tempObj.quaternion, orientRate);
     this._model.quaternion.copy(this._smoothQuat);
 
     // Animation control
@@ -122,9 +128,9 @@ export class BirdModel {
         this._action.paused = false;
         this._action.timeScale = 2.5;
       } else if (mode === FLIGHT_MODE.LANDING) {
-        // Landing: wings spread, slowing down
+        // Landing flare: wings spread wide, very slow movement (braking pose)
         this._action.paused = false;
-        this._action.timeScale = 0.3;
+        this._action.timeScale = 0.1; // nearly frozen, wings spread
       } else if (isFlapping) {
         // Flapping: play animation at normal/fast speed
         this._action.paused = false;

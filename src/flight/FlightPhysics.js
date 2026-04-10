@@ -7,8 +7,8 @@ import {
   FLAP_THRUST, FLAP_DURATION, FLAP_COOLDOWN, FLAP_LIFT_BONUS,
   MAX_SPEED, TERMINAL_VELOCITY, MIN_FLIGHT_SPEED,
   BANK_RATE, PITCH_RATE, ROLL_RATE, MAX_ROLL, MAX_PITCH,
-  FLIGHT_MODE, WALK_SPEED, LANDING_SPEED_THRESHOLD, LANDING_ALTITUDE_MARGIN,
-  TAKEOFF_IMPULSE, TAKEOFF_DURATION, GROUND_OFFSET, GROUND_EFFECT_HEIGHT,
+  FLIGHT_MODE, WALK_SPEED, WALK_SPRINT_SPEED, LANDING_SPEED_THRESHOLD, LANDING_ALTITUDE_MARGIN,
+  TAKEOFF_IMPULSE, TAKEOFF_DURATION, GROUND_OFFSET, GROUND_EFFECT_HEIGHT, JUMP_IMPULSE,
 } from '../constants.js';
 
 /**
@@ -91,13 +91,14 @@ export class FlightPhysics {
    * Main physics step — aerodynamic force model.
    * @param {number} dt - delta time in seconds
    * @param {number} [terrainHeight=0] - ground height at current position
+   * @param {object} [groundInput] - ground movement input { forward, strafe, turn, jump, sprint }
    */
-  update(dt, terrainHeight = 0) {
+  update(dt, terrainHeight = 0, groundInput) {
     const s = this.state;
 
     // Handle grounded/takeoff modes separately
     if (s.mode === FLIGHT_MODE.GROUNDED) {
-      this._updateGrounded(dt, terrainHeight);
+      this._updateGrounded(dt, terrainHeight, groundInput);
       return;
     }
     if (s.mode === FLIGHT_MODE.TAKEOFF) {
@@ -261,13 +262,35 @@ export class FlightPhysics {
         s.pitch <= 0.05 &&
         terrainHeight >= 14) { // don't land on water
       s.mode = FLIGHT_MODE.LANDING;
+      s.landingTimer = 0; // track landing progress
     }
 
-    // LANDING → GROUNDED when touching ground
+    // LANDING: flare — wings spread, pitch up gradually, decelerate
     if (s.mode === FLIGHT_MODE.LANDING) {
-      // Steer bird toward ground gently
-      if (s.velocity.y > -2) s.velocity.y -= 3.0 * dt;
-      if (heightAboveGround <= GROUND_OFFSET + 0.5) {
+      s.landingTimer = (s.landingTimer || 0) + dt;
+      const progress = clamp(s.landingTimer / 1.5, 0, 1); // 1.5s landing flare
+
+      // Flare: pitch nose up gradually (like a bird braking)
+      s.pitch += (0.4 - s.pitch) * 2.0 * dt; // nose up to ~25°
+      s.roll *= 0.9; // level out roll
+
+      // Wings fully spread for braking
+      s.wingSpread = 1.0;
+
+      // Decelerate horizontally
+      const hSpeed = Math.sqrt(s.velocity.x * s.velocity.x + s.velocity.z * s.velocity.z);
+      if (hSpeed > 0.5) {
+        const drag = Math.min(8.0 * dt, hSpeed * 0.5);
+        s.velocity.x *= 1 - drag / hSpeed;
+        s.velocity.z *= 1 - drag / hSpeed;
+      }
+
+      // Gentle descent
+      if (s.velocity.y > -1.5) s.velocity.y -= 2.0 * dt;
+      s.velocity.y = Math.max(s.velocity.y, -2.0); // cap descent rate
+
+      // Touchdown
+      if (heightAboveGround <= GROUND_OFFSET + 0.3) {
         s.mode = FLIGHT_MODE.GROUNDED;
         s.velocity.set(0, 0, 0);
         s.position.y = terrainHeight + GROUND_OFFSET;
@@ -279,27 +302,58 @@ export class FlightPhysics {
   }
 
   /**
-   * Grounded physics: walking on terrain.
+   * Grounded physics: walking on terrain with WASD controls.
+   * @param {object} groundInput - { forward, strafe, turn, jump, sprint }
    */
-  _updateGrounded(dt, terrainHeight) {
+  _updateGrounded(dt, terrainHeight, groundInput = {}) {
     const s = this.state;
+
+    // Turning (arrow keys / mouse)
+    s.yaw += (groundInput.turn || 0) * 2.5 * dt;
+
     s.updateVectors();
 
     // Terrain following
-    s.position.y = terrainHeight + GROUND_OFFSET;
     s.altitude = s.position.y;
     s.pitch = 0;
     s.roll = 0;
     s.angleOfAttack = 0;
     s.liftCoefficient = 0;
 
-    // Walking: auto-walk forward at slow speed
-    const walkDir = new THREE.Vector3(
+    // Movement: forward/backward + strafe
+    const fwd = groundInput.forward || 0; // -1..1
+    const strafe = groundInput.strafe || 0; // -1..1
+    const sprint = groundInput.sprint ? WALK_SPRINT_SPEED : WALK_SPEED;
+
+    const forwardDir = new THREE.Vector3(
       -Math.sin(s.yaw), 0, -Math.cos(s.yaw),
-    ).normalize();
-    s.velocity.copy(walkDir.multiplyScalar(WALK_SPEED * 0.5));
+    );
+    const rightDir = new THREE.Vector3(
+      -Math.cos(s.yaw), 0, Math.sin(s.yaw),
+    );
+
+    s.velocity.set(0, 0, 0);
+    s.velocity.addScaledVector(forwardDir, fwd * sprint);
+    s.velocity.addScaledVector(rightDir, strafe * sprint);
     s.position.addScaledVector(s.velocity, dt);
     s.speed = s.velocity.length();
+
+    // Jump
+    if (groundInput.jump) {
+      s.velocity.y = JUMP_IMPULSE;
+      s.position.y += 0.1; // small kick to leave ground check
+    }
+
+    // Gravity when airborne (after jump)
+    if (s.position.y > terrainHeight + GROUND_OFFSET + 0.2) {
+      s.velocity.y += GRAVITY * dt;
+      s.position.y += s.velocity.y * dt;
+    } else {
+      s.position.y = terrainHeight + GROUND_OFFSET;
+      s.velocity.y = 0;
+    }
+
+    s.altitude = s.position.y;
   }
 
   /**

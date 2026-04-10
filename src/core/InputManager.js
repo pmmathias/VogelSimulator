@@ -43,6 +43,11 @@ export class InputManager {
       }
     });
     window.addEventListener('keyup', (e) => { this._keys[e.code] = false; });
+    // Track jump as single press (not held)
+    this._jumpPressed = false;
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !e.repeat) this._jumpPressed = true;
+    });
   }
 
   /**
@@ -90,5 +95,23 @@ export class InputManager {
       this.wingSpread = 1.0;  // wings spread
       this.pitch = 0;         // neutral → gentle glide
     }
+  }
+
+  /**
+   * Ground movement input (WASD + arrows + space + shift).
+   * W/S = forward/back, A/D = strafe, Arrows L/R = turn, Space = jump, Shift = sprint.
+   */
+  getGroundInput() {
+    let forward = 0, strafe = 0, turn = 0;
+    if (this._keys['KeyW'] || this._keys['ArrowUp']) forward = 1;
+    if (this._keys['KeyS'] || this._keys['ArrowDown']) forward = -1;
+    if (this._keys['KeyA']) strafe = -1;
+    if (this._keys['KeyD']) strafe = 1;
+    if (this._keys['ArrowLeft']) turn = 1;
+    if (this._keys['ArrowRight']) turn = -1;
+    const sprint = this._keys['ShiftLeft'] || this._keys['ShiftRight'];
+    const jump = this._jumpPressed;
+    this._jumpPressed = false; // consume
+    return { forward, strafe, turn, jump, sprint };
   }
 }

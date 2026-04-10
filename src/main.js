@@ -272,14 +272,14 @@ loop.onUpdate((dt) => {
 
     // Apply controls to physics (mode-dependent)
     const mode = flightState.mode;
+    let groundInput = null;
 
     if (mode === FLIGHT_MODE.GROUNDED) {
-      // Grounded: flap triggers takeoff, roll turns on ground
-      if (input.lift > 0.5) {
+      // Ground controls: WASD movement, arrows turn, space jump, shift sprint
+      groundInput = input.getGroundInput();
+      // Flap on mobile (shake) → takeoff
+      if (mobileInput && mobileInput.active && input.lift > 0.5) {
         flightPhysics.takeoff();
-      } else {
-        // Ground turning: yaw from roll input
-        flightState.yaw += input.roll * 2.0 * dt;
       }
     } else {
       // Flying/Landing/Takeoff: normal controls
@@ -289,7 +289,7 @@ loop.onUpdate((dt) => {
       flightPhysics.applyPitch(input.pitch, dt);
     }
 
-    flightPhysics.update(dt, groundY);
+    flightPhysics.update(dt, groundY, groundInput);
     flightPhysics.enforceGround(groundY);
 
     // Camera follow
