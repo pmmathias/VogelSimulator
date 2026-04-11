@@ -5,6 +5,8 @@ dist/
 .env
 *.png
 *.jpg
+# But keep game textures
+!public/textures/*.jpg
 blog-screenshots/header-*.mp4
 
 # Internal / not for public
