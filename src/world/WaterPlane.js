@@ -23,10 +23,10 @@ const GERSTNER_PARS = /* glsl */ `
 
   vec3 gerstnerDisplace(vec2 pos) {
     vec3 d = vec3(0.0);
-    d += gerstnerWave(pos, 1.2, 0.06, 1.5, normalize(vec2(1.0, 0.3)), 0.6);
-    d += gerstnerWave(pos, 0.8, 0.10, 2.0, normalize(vec2(-0.5, 1.0)), 0.5);
-    d += gerstnerWave(pos, 0.5, 0.15, 2.5, normalize(vec2(0.7, -0.6)), 0.4);
-    d += gerstnerWave(pos, 0.3, 0.22, 3.0, normalize(vec2(-0.3, -0.8)), 0.3);
+    // Subtle swell — just enough to break reflections, normal map does the detail
+    d += gerstnerWave(pos, 0.35, 0.04, 1.0, normalize(vec2(1.0, 0.3)), 0.4);
+    d += gerstnerWave(pos, 0.25, 0.07, 1.4, normalize(vec2(-0.5, 1.0)), 0.35);
+    d += gerstnerWave(pos, 0.15, 0.11, 1.8, normalize(vec2(0.7, -0.6)), 0.3);
     return d;
   }
 `;
