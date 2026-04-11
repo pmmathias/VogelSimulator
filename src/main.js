@@ -14,6 +14,8 @@ import { FlightPhysics } from './flight/FlightPhysics.js';
 import { CameraRig } from './flight/CameraRig.js';
 import { BirdModel } from './flight/BirdModel.js';
 import { Flock } from './flight/Flock.js';
+import { WaterSpray } from './world/WaterSpray.js';
+import { FishCatcher } from './world/FishCatcher.js';
 import { WebcamManager } from './pose/WebcamManager.js';
 import { PoseDetector } from './pose/PoseDetector.js';
 import { ArmAnalyzer } from './pose/ArmAnalyzer.js';
@@ -64,6 +66,10 @@ console.log(`Spawn height: ${flightState.position.y.toFixed(0)}m (terrain max ne
 const flightPhysics = new FlightPhysics(flightState);
 const cameraRig = new CameraRig(camera, flightState);
 const birdModel = new BirdModel(scene);
+
+// Water effects
+const waterSpray = new WaterSpray(scene);
+const fishCatcher = new FishCatcher(scene);
 
 // Flock — desktop only (too heavy for mobile)
 let flock = null;
@@ -296,6 +302,10 @@ loop.onUpdate((dt) => {
     cameraRig.update(dt);
     birdModel.update(flightState, dt, camera);
     if (flock) flock.update(flightState, dt);
+
+    // Water effects
+    waterSpray.update(flightState, dt);
+    fishCatcher.update(flightState, dt);
 
     // HUD
     hud.update(flightState, input.lift > 0, input.source);

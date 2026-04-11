@@ -1,53 +1,23 @@
 import { clamp } from '../utils/math.js';
+import { t } from '../i18n.js';
 
 /**
  * Mobile calibration wizard — walks user through each flight gesture
  * to learn the correct axis mapping for their device + orientation.
- *
- * Steps: Rest → Left → Right → Climb → Dive → Shake
- * Produces a CalibrationProfile used by MobileInput.
  */
 
-const STEP_DURATION = 2500; // ms sampling per tilt step
+const STEP_DURATION = 2500;
 
-const STEPS = [
-  {
-    id: 'rest',
-    icon: '✋',
-    title: 'Gleitflug-Position',
-    text: 'Halte dein Handy ruhig so,\nwie du fliegen möchtest.',
-  },
-  {
-    id: 'left',
-    icon: '↰',
-    title: 'Linksflug',
-    text: 'Neige für einen\nsanften Linksflug.',
-  },
-  {
-    id: 'right',
-    icon: '↱',
-    title: 'Scharfe Rechtskurve',
-    text: 'Neige für eine\nscharfe Rechtskurve!',
-  },
-  {
-    id: 'climb',
-    icon: '↗',
-    title: 'Steigflug',
-    text: 'Neige für einen\nSteigflug nach oben.',
-  },
-  {
-    id: 'dive',
-    icon: '↘',
-    title: 'Sturzflug',
-    text: 'Neige für einen\nSturzflug nach unten.',
-  },
-  {
-    id: 'shake',
-    icon: '🦅',
-    title: 'Flügelschlag!',
-    text: 'Schüttle dein Handy\nkräftig!',
-  },
-];
+function getSteps() {
+  return [
+    { id: 'rest', icon: '✋', title: t('calib.rest.title'), text: t('calib.rest.text') },
+    { id: 'left', icon: '↰', title: t('calib.left.title'), text: t('calib.left.text') },
+    { id: 'right', icon: '↱', title: t('calib.right.title'), text: t('calib.right.text') },
+    { id: 'climb', icon: '↗', title: t('calib.climb.title'), text: t('calib.climb.text') },
+    { id: 'dive', icon: '↘', title: t('calib.dive.title'), text: t('calib.dive.text') },
+    { id: 'shake', icon: '🦅', title: t('calib.shake.title'), text: t('calib.shake.text') },
+  ];
+}
 
 export class CalibrationWizard {
   constructor() {
@@ -70,8 +40,9 @@ export class CalibrationWizard {
     this._createOverlay();
     const data = {};
 
-    for (let i = 0; i < STEPS.length; i++) {
-      const step = STEPS[i];
+    const steps = getSteps();
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
       if (step.id === 'shake') {
         data.shake = await this._runShakeStep(step, i);
       } else {
@@ -111,7 +82,7 @@ export class CalibrationWizard {
   _renderStep(step, stepIndex) {
     this._overlay.innerHTML = `
       <div style="color:#556677; font-size:12px; margin-bottom:20px; letter-spacing:1px;">
-        SCHRITT ${stepIndex + 1} / ${STEPS.length}
+        ${t('calib.step')} ${stepIndex + 1} / ${getSteps().length}
       </div>
       <div style="font-size:56px; margin-bottom:16px;">${step.icon}</div>
       <h2 style="font-size:22px; font-weight:bold; margin-bottom:8px;
@@ -208,7 +179,7 @@ export class CalibrationWizard {
           // Flash success
           const h2 = this._overlay.querySelector('h2');
           if (h2) {
-            h2.textContent = 'Erkannt! ✓';
+            h2.textContent = `${t('calib.detected')} ✓`;
             h2.style.color = '#44dd88';
           }
           setTimeout(
@@ -313,8 +284,8 @@ export class CalibrationWizard {
     this._overlay.innerHTML = `
       <div style="font-size:56px; margin-bottom:16px;">✓</div>
       <h2 style="font-size:24px; font-weight:bold; color:#44dd88;
-        margin-bottom:8px;">Kalibrierung fertig!</h2>
-      <p style="color:#88aacc; font-size:14px;">Viel Spaß beim Fliegen!</p>
+        margin-bottom:8px;">${t('calib.done')}</h2>
+      <p style="color:#88aacc; font-size:14px;">${t('calib.enjoy')}</p>
     `;
     await this._delay(1200);
   }

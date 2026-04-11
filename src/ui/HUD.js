@@ -1,3 +1,5 @@
+import { t } from '../i18n.js';
+
 /**
  * Simple HTML-based HUD overlay for flight information.
  */
@@ -80,8 +82,9 @@ export class HUD {
       ? '<span style="color:#44ff44">WEBCAM</span>'
       : '<span style="color:#ffaa44">KEYBOARD</span>';
 
-    // Flight mode indicator
-    const MODE_LABELS = ['FLYING', 'LANDING...', 'WALKING', 'TAKING OFF...'];
+    // Flight mode indicator (import-free — uses keys directly)
+    const MODE_KEYS = ['hud.flying', 'hud.landing', 'hud.walking', 'hud.takeoff'];
+    const MODE_LABELS = MODE_KEYS.map(k => t(k));
     const MODE_COLORS = ['#88aacc', '#ffaa44', '#44dd88', '#ffaa44'];
     const modeIdx = state.mode ?? 0;
     const flightModeLabel = `<span style="color:${MODE_COLORS[modeIdx]}">${MODE_LABELS[modeIdx]}</span>`;

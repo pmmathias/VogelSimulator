@@ -26,6 +26,25 @@
   " onmouseover="this.style.background='rgba(0,0,0,0.5)'"
      onmouseout="this.style.background='rgba(0,0,0,0.3)'"
   >&larr; ki-mathias.de</a>
+  <button id="lang-toggle" style="
+    position:fixed; top:12px; right:12px; z-index:200;
+    color:rgba(255,255,255,0.7); font:bold 12px sans-serif;
+    background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.2);
+    padding:5px 10px; border-radius:8px; cursor:pointer;
+    transition:background 0.2s;
+  " onmouseover="this.style.background='rgba(0,0,0,0.5)'"
+     onmouseout="this.style.background='rgba(0,0,0,0.3)'"
+  >EN</button>
+  <script type="module">
+    import { lang, toggleLang, onLangChange } from '/src/i18n.js';
+    const btn = document.getElementById('lang-toggle');
+    btn.textContent = lang() === 'de' ? 'EN' : 'DE';
+    btn.addEventListener('click', () => {
+      toggleLang();
+      btn.textContent = lang() === 'de' ? 'EN' : 'DE';
+    });
+    onLangChange(() => { btn.textContent = lang() === 'de' ? 'EN' : 'DE'; });
+  </script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
