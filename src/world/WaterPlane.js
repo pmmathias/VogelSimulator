@@ -1,122 +1,85 @@
 import * as THREE from 'three';
 import { Water } from 'three/addons/objects/Water.js';
+import { Ocean } from '../vendor/Ocean3.js';
 import { WORLD_SIZE, WATER_LEVEL } from '../constants.js';
 
 /**
- * Gerstner wave GLSL — injected into the Water vertex shader.
- * 4 overlapping waves with different directions/frequencies for realism.
+ * Hybrid water: Three.js Water class (for sun reflection) +
+ * Phil Crowther's Ocean3 iFFT wave generator (displacement + normal maps).
+ *
+ * - Water class handles: sun reflection, mirror reflection, PBR water look
+ * - Ocean3 handles: realistic wave shape via FFT → vertex displacement + normals
+ *
+ * Ocean3.js © Phil Crowther — CC BY-NC-SA 3.0
+ *
+ * @param {THREE.DirectionalLight} sun
+ * @param {THREE.WebGLRenderer} renderer
  */
-const GERSTNER_PARS = /* glsl */ `
-  uniform float waveTime;
+export function createWaterPlane(sun, renderer) {
+  const WAVE_TILE = 2400;
+  const wav_ = {
+    Res: 512,
+    Siz: WAVE_TILE,
+    WSp: 18,
+    WHd: 295,
+    Chp: 1.5,
+  };
+  const ocean = new Ocean(renderer, wav_);
 
-  // wave(amplitude, frequency, speed, dirX, dirZ)
-  vec3 gerstnerWave(vec2 pos, float amp, float freq, float speed, vec2 dir, float steep) {
-    float phase = freq * dot(dir, pos) - speed * waveTime;
-    float c = cos(phase);
-    float s = sin(phase);
-    return vec3(
-      steep * amp * dir.x * c,
-      amp * s,
-      steep * amp * dir.y * c
-    );
+  const PLANE_SIZE = WORLD_SIZE * 4;               // 24000m
+  const TILE_COUNT = PLANE_SIZE / WAVE_TILE;       // 10× tiling
+  const SEGMENTS = 256;
+
+  // Subdivided geometry for vertex displacement (65K verts)
+  const geometry = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, SEGMENTS, SEGMENTS);
+  const uv = geometry.attributes.uv;
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, uv.getX(i) * TILE_COUNT, uv.getY(i) * TILE_COUNT);
   }
 
-  vec3 gerstnerDisplace(vec2 pos) {
-    vec3 d = vec3(0.0);
-    // Subtle swell — just enough to break reflections, normal map does the detail
-    d += gerstnerWave(pos, 0.35, 0.04, 1.0, normalize(vec2(1.0, 0.3)), 0.4);
-    d += gerstnerWave(pos, 0.25, 0.07, 1.4, normalize(vec2(-0.5, 1.0)), 0.35);
-    d += gerstnerWave(pos, 0.15, 0.11, 1.8, normalize(vec2(0.7, -0.6)), 0.3);
-    return d;
-  }
-`;
+  // Configure Phil's FFT textures for repeating
+  const normalMap = ocean.normalMapFramebuffer.texture;
+  normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+  const displacementMap = ocean.displacementMapFramebuffer.texture;
+  displacementMap.wrapS = displacementMap.wrapT = THREE.RepeatWrapping;
 
-const GERSTNER_VERTEX = /* glsl */ `
-  vec3 wavePos = gerstnerDisplace(worldPosition.xz);
-  worldPosition.x += wavePos.x;
-  worldPosition.y += wavePos.y;
-  worldPosition.z += wavePos.z;
-`;
-
-/**
- * Create an animated water plane with Gerstner wave displacement.
- */
-export function createWaterPlane(sun) {
-  // Subdivided geometry for vertex displacement (128×128 = 16K verts)
-  const geometry = new THREE.PlaneGeometry(WORLD_SIZE * 4, WORLD_SIZE * 4, 128, 128);
-
+  // Three.js Water class — gives us sun reflection + mirror reflection
+  // Using Phil's FFT normal map instead of the default one
   const water = new Water(geometry, {
     textureWidth: 512,
     textureHeight: 512,
-    waterNormals: new THREE.TextureLoader().load(
-      'textures/waternormals.jpg',
-      (tex) => {
-        tex.wrapS = THREE.RepeatWrapping;
-        tex.wrapT = THREE.RepeatWrapping;
-      },
-      undefined,
-      () => {
-        // Fallback: procedural normal map
-        const canvas = document.createElement('canvas');
-        const sz = 512;
-        canvas.width = sz;
-        canvas.height = sz;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#8080ff';
-        ctx.fillRect(0, 0, sz, sz);
-        for (let octave = 0; octave < 3; octave++) {
-          const count = [200, 400, 800][octave];
-          const maxR = [20, 8, 3][octave];
-          const strength = [20, 12, 6][octave];
-          for (let i = 0; i < count; i++) {
-            const x = Math.random() * sz;
-            const y = Math.random() * sz;
-            const r = 1 + Math.random() * maxR;
-            const angle = Math.random() * Math.PI * 2;
-            const nr = 128 + Math.floor(Math.cos(angle) * strength);
-            const ng = 128 + Math.floor(Math.sin(angle) * strength);
-            const gradient = ctx.createRadialGradient(x, y, 0, x, y, r);
-            gradient.addColorStop(0, `rgb(${nr}, ${ng}, 255)`);
-            gradient.addColorStop(1, `rgb(128, 128, 255)`);
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(x, y, r, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.wrapS = THREE.RepeatWrapping;
-        tex.wrapT = THREE.RepeatWrapping;
-        water.material.uniforms.normalSampler.value = tex;
-      },
-    ),
+    waterNormals: normalMap,
     sunDirection: new THREE.Vector3().copy(sun.position).normalize(),
-    sunColor: 0xffffff,
-    waterColor: 0x001e0f,
-    distortionScale: 3.7,
+    sunColor: 0xffeedd,
+    waterColor: 0x003050,
+    distortionScale: 2.5,
     fog: false,
   });
 
-  // Inject Gerstner wave displacement into the Water vertex shader
-  water.material.uniforms.waveTime = { value: 0 };
-  water.material.vertexShader = water.material.vertexShader.replace(
-    'void main() {',
-    GERSTNER_PARS + '\nvoid main() {',
-  );
-  water.material.vertexShader = water.material.vertexShader.replace(
-    'gl_Position = projectionMatrix * mvPosition;',
-    GERSTNER_VERTEX + '\ngl_Position = projectionMatrix * mvPosition;',
-  );
+  // Inject Phil's displacement map into Water's vertex shader
+  water.material.uniforms.oceanDisplacement = { value: displacementMap };
+  water.material.vertexShader =
+    'uniform sampler2D oceanDisplacement;\n' +
+    water.material.vertexShader.replace(
+      'void main() {',
+      `void main() {
+        vec3 oceanDisp = texture2D(oceanDisplacement, uv).rgb;
+      `,
+    ).replace(
+      // Replace ALL uses of `vec4( position, 1.0 )` with displaced position
+      /vec4\s*\(\s*position\s*,\s*1\.0\s*\)/g,
+      'vec4(position + oceanDisp, 1.0)',
+    );
   water.material.needsUpdate = true;
 
   water.rotation.x = -Math.PI / 2;
   water.position.y = WATER_LEVEL;
 
-  // Underwater plane (no Gerstner needed — viewed from below, fine without displacement)
-  const underWater = new Water(new THREE.PlaneGeometry(WORLD_SIZE * 4, WORLD_SIZE * 4), {
-    textureWidth: 512,
-    textureHeight: 512,
-    waterNormals: water.material.uniforms.normalSampler.value,
+  // Simple flat underwater plane (viewed from below when diving)
+  const underWater = new Water(new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE), {
+    textureWidth: 256,
+    textureHeight: 256,
+    waterNormals: normalMap,
     sunDirection: new THREE.Vector3().copy(sun.position).normalize(),
     sunColor: 0xffffff,
     waterColor: 0x001e0f,
@@ -131,8 +94,8 @@ export function createWaterPlane(sun) {
   waterGroup.add(underWater);
 
   function update(dt) {
+    ocean.update(dt);
     water.material.uniforms.time.value += dt;
-    water.material.uniforms.waveTime.value += dt;
     underWater.material.uniforms.time.value += dt;
   }
 

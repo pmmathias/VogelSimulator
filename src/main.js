@@ -49,7 +49,7 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.1;
 
 // --- Build the world ---
-const world = buildWorld(scene);
+const world = buildWorld(scene, renderer);
 
 // --- Flight system ---
 const flightState = new FlightState();

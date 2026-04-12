@@ -26,6 +26,78 @@
   " onmouseover="this.style.background='rgba(0,0,0,0.5)'"
      onmouseout="this.style.background='rgba(0,0,0,0.3)'"
   >&larr; ki-mathias.de</a>
+  <button id="credits-btn" style="
+    position:fixed; top:12px; left:165px; z-index:200;
+    color:rgba(255,255,255,0.6); font:13px sans-serif;
+    background:rgba(0,0,0,0.3); border:none; padding:6px 12px; border-radius:8px;
+    cursor:pointer; transition:background 0.2s;
+  " onmouseover="this.style.background='rgba(0,0,0,0.5)'"
+     onmouseout="this.style.background='rgba(0,0,0,0.3)'"
+  >Credits</button>
+  <div id="credits-overlay" style="
+    position:fixed; inset:0; z-index:800;
+    background:rgba(8,16,32,0.92); display:none;
+    align-items:center; justify-content:center; padding:20px;
+    font-family:sans-serif;
+  ">
+    <div style="
+      max-width:520px; background:linear-gradient(135deg, #0a1628 0%, #1a2a4a 50%, #0a1628 100%);
+      border:1px solid rgba(96,192,255,0.3); border-radius:16px; padding:32px;
+      color:white; position:relative;
+    ">
+      <button id="credits-close" style="
+        position:absolute; top:12px; right:12px;
+        background:transparent; border:none; color:rgba(255,255,255,0.6);
+        font-size:24px; cursor:pointer; padding:4px 10px;
+      ">&times;</button>
+      <h2 style="color:#60c0ff; font-size:22px; margin-bottom:20px;">Credits</h2>
+
+      <div style="margin-bottom:20px;">
+        <h3 style="color:#ffaa44; font-size:16px; margin-bottom:8px;">🌊 Ocean Waves</h3>
+        <p style="color:#bbccdd; font-size:13px; line-height:1.6;">
+          The realistic wave simulation uses <b>Phil Crowther's Ocean3 module</b>
+          (WebGL2 iFFT ocean wave generator). Amazing work — thank you, Phil!
+        </p>
+        <div style="margin-top:10px; font-size:12px;">
+          <a href="http://philcrowther.com/Aviation/3JS_demos.html" target="_blank"
+            style="color:#60c0ff; text-decoration:none; margin-right:12px;">→ Phil's Three.js Demos</a>
+          <a href="https://discourse.threejs.org/t/ifft-ocean-wave-generator-module/51800" target="_blank"
+            style="color:#60c0ff; text-decoration:none;">→ Discourse Post</a>
+        </div>
+        <p style="color:#667788; font-size:11px; margin-top:8px;">
+          Ocean3.js © Phil Crowther · Licensed under CC BY-NC-SA 3.0
+        </p>
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <h3 style="color:#ffaa44; font-size:16px; margin-bottom:8px;">🦅 VogelSimulator</h3>
+        <p style="color:#bbccdd; font-size:13px; line-height:1.6;">
+          Built with Three.js + MediaPipe. Source code on
+          <a href="https://github.com/pmmathias/VogelSimulator" target="_blank"
+            style="color:#60c0ff;">GitHub</a>.
+        </p>
+      </div>
+
+      <div>
+        <h3 style="color:#ffaa44; font-size:16px; margin-bottom:8px;">📦 Assets</h3>
+        <p style="color:#bbccdd; font-size:12px; line-height:1.5;">
+          Terrain &amp; building textures: <a href="https://polyhaven.com" target="_blank" style="color:#60c0ff;">Poly Haven</a> (CC0)<br>
+          Stork 3D model: Community asset<br>
+          Blog: <a href="https://ki-mathias.de/" target="_blank" style="color:#60c0ff;">ki-mathias.de</a>
+        </p>
+      </div>
+    </div>
+  </div>
+  <script>
+    const creditsBtn = document.getElementById('credits-btn');
+    const creditsOv = document.getElementById('credits-overlay');
+    const creditsClose = document.getElementById('credits-close');
+    creditsBtn.addEventListener('click', () => { creditsOv.style.display = 'flex'; });
+    creditsClose.addEventListener('click', () => { creditsOv.style.display = 'none'; });
+    creditsOv.addEventListener('click', (e) => {
+      if (e.target === creditsOv) creditsOv.style.display = 'none';
+    });
+  </script>
   <button id="lang-toggle" style="
     position:fixed; top:12px; right:12px; z-index:900;
     color:rgba(255,255,255,0.7); font:bold 12px sans-serif;
