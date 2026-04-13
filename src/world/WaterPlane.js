@@ -69,6 +69,8 @@ export function createWaterPlane(sun, renderer) {
 
   const supportsIFFT = _checkIFFTSupport(renderer);
   console.log(`Water: iFFT ${supportsIFFT ? 'supported → Ocean3' : 'unavailable → Gerstner fallback'}`);
+  // Expose to top bar
+  window.__waterPath = supportsIFFT ? 'iFFT' : 'Gerstner';
 
   const PLANE_SIZE = WORLD_SIZE * 4;
   const SEGMENTS = IS_MOBILE ? 128 : 256;
@@ -80,7 +82,7 @@ export function createWaterPlane(sun, renderer) {
       return _createIFFTWater(sun, renderer, PLANE_SIZE, SEGMENTS, REFLECTION_SIZE, IS_MOBILE);
     } catch (err) {
       console.warn('Ocean3 init failed, falling back to Gerstner:', err);
-      // Fall through to Gerstner path
+      window.__waterPath = 'Gerstner'; // update indicator
     }
   }
 

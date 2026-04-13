@@ -15,98 +15,180 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
     canvas { display: block; }
+
+    /* --- Top bar --- */
+    #topbar {
+      position: fixed; top: 10px; left: 10px; right: 10px;
+      display: flex; align-items: center; justify-content: space-between;
+      z-index: 900; pointer-events: none;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    }
+    #topbar-left, #topbar-right {
+      display: flex; align-items: center; gap: 6px;
+      pointer-events: auto;
+    }
+    .tb-item {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 12px; border-radius: 999px;
+      background: rgba(10, 22, 40, 0.55);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 12px; line-height: 1;
+      text-decoration: none; cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tb-item:hover {
+      background: rgba(10, 22, 40, 0.8);
+      border-color: rgba(96, 192, 255, 0.4);
+      color: #fff;
+    }
+    /* Primary logo-style link */
+    .tb-primary {
+      background: linear-gradient(135deg, rgba(32, 128, 204, 0.35), rgba(64, 160, 255, 0.25));
+      border-color: rgba(96, 192, 255, 0.5);
+      color: #fff;
+      font-weight: 600;
+      font-size: 13px;
+      padding: 8px 14px;
+      box-shadow: 0 2px 8px rgba(32, 128, 204, 0.2);
+    }
+    .tb-primary:hover {
+      background: linear-gradient(135deg, rgba(32, 128, 204, 0.55), rgba(64, 160, 255, 0.45));
+      box-shadow: 0 2px 14px rgba(64, 160, 255, 0.4);
+    }
+    .tb-item .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #44dd88; /* iFFT = green */
+    }
+    .tb-item .dot.fallback { background: #ffaa44; } /* Gerstner = amber */
+
+    @media (max-width: 500px) {
+      .tb-item { font-size: 11px; padding: 6px 10px; }
+      .tb-primary { font-size: 12px; padding: 7px 12px; }
+      .tb-hide-mobile { display: none; }
+    }
+
+    /* --- Credits overlay --- */
+    #credits-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(8, 16, 32, 0.92);
+      display: none; align-items: center; justify-content: center; padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    }
+    #credits-overlay.open { display: flex; }
+    #credits-card {
+      max-width: 520px;
+      background: linear-gradient(135deg, #0a1628 0%, #1a2a4a 50%, #0a1628 100%);
+      border: 1px solid rgba(96, 192, 255, 0.3); border-radius: 16px;
+      padding: 32px; color: white; position: relative;
+    }
+    #credits-close {
+      position: absolute; top: 12px; right: 12px;
+      background: transparent; border: none; color: rgba(255, 255, 255, 0.6);
+      font-size: 24px; cursor: pointer; padding: 4px 10px;
+    }
+    #credits-card h2 { color: #60c0ff; font-size: 22px; margin-bottom: 20px; }
+    #credits-card h3 { color: #ffaa44; font-size: 16px; margin-bottom: 8px; }
+    #credits-card .section { margin-bottom: 20px; }
+    #credits-card p { color: #bbccdd; font-size: 13px; line-height: 1.6; }
+    #credits-card a { color: #60c0ff; text-decoration: none; }
+    #credits-card a:hover { text-decoration: underline; }
+    #credits-card .lic-note { color: #667788; font-size: 11px; margin-top: 8px; }
   </style>
 </head>
 <body>
-  <a href="https://ki-mathias.de/" style="
-    position:fixed; top:12px; left:12px; z-index:200;
-    color:rgba(255,255,255,0.6); font:13px sans-serif; text-decoration:none;
-    background:rgba(0,0,0,0.3); padding:6px 12px; border-radius:8px;
-    transition:background 0.2s;
-  " onmouseover="this.style.background='rgba(0,0,0,0.5)'"
-     onmouseout="this.style.background='rgba(0,0,0,0.3)'"
-  >&larr; ki-mathias.de</a>
-  <button id="credits-btn" style="
-    position:fixed; top:12px; left:165px; z-index:200;
-    color:rgba(255,255,255,0.6); font:13px sans-serif;
-    background:rgba(0,0,0,0.3); border:none; padding:6px 12px; border-radius:8px;
-    cursor:pointer; transition:background 0.2s;
-  " onmouseover="this.style.background='rgba(0,0,0,0.5)'"
-     onmouseout="this.style.background='rgba(0,0,0,0.3)'"
-  >Credits</button>
-  <div id="credits-overlay" style="
-    position:fixed; inset:0; z-index:800;
-    background:rgba(8,16,32,0.92); display:none;
-    align-items:center; justify-content:center; padding:20px;
-    font-family:sans-serif;
-  ">
-    <div style="
-      max-width:520px; background:linear-gradient(135deg, #0a1628 0%, #1a2a4a 50%, #0a1628 100%);
-      border:1px solid rgba(96,192,255,0.3); border-radius:16px; padding:32px;
-      color:white; position:relative;
-    ">
-      <button id="credits-close" style="
-        position:absolute; top:12px; right:12px;
-        background:transparent; border:none; color:rgba(255,255,255,0.6);
-        font-size:24px; cursor:pointer; padding:4px 10px;
-      ">&times;</button>
-      <h2 style="color:#60c0ff; font-size:22px; margin-bottom:20px;">Credits</h2>
+  <!-- Top bar -->
+  <div id="topbar">
+    <div id="topbar-left">
+      <a href="https://ki-mathias.de/" class="tb-item tb-primary">
+        <span>&larr;</span><span>ki-mathias.de</span>
+      </a>
+      <button id="credits-btn" class="tb-item" title="Credits">
+        <span>Credits</span>
+      </button>
+    </div>
+    <div id="topbar-right">
+      <div id="water-mode" class="tb-item tb-hide-mobile" title="Water rendering mode">
+        <span class="dot"></span><span id="water-mode-label">Water</span>
+      </div>
+      <button id="lang-toggle" class="tb-item" style="font-weight:600;">EN</button>
+    </div>
+  </div>
 
-      <div style="margin-bottom:20px;">
-        <h3 style="color:#ffaa44; font-size:16px; margin-bottom:8px;">🌊 Ocean Waves</h3>
-        <p style="color:#bbccdd; font-size:13px; line-height:1.6;">
+  <!-- Credits overlay -->
+  <div id="credits-overlay">
+    <div id="credits-card">
+      <button id="credits-close">&times;</button>
+      <h2>Credits</h2>
+
+      <div class="section">
+        <h3>🌊 Ocean Waves</h3>
+        <p>
           The realistic wave simulation uses <b>Phil Crowther's Ocean3 module</b>
           (WebGL2 iFFT ocean wave generator). Amazing work — thank you, Phil!
         </p>
         <div style="margin-top:10px; font-size:12px;">
           <a href="http://philcrowther.com/Aviation/3JS_demos.html" target="_blank"
-            style="color:#60c0ff; text-decoration:none; margin-right:12px;">→ Phil's Three.js Demos</a>
-          <a href="https://discourse.threejs.org/t/ifft-ocean-wave-generator-module/51800" target="_blank"
-            style="color:#60c0ff; text-decoration:none;">→ Discourse Post</a>
+            style="margin-right:12px;">→ Phil's Three.js Demos</a>
+          <a href="https://discourse.threejs.org/t/ifft-ocean-wave-generator-module/51800" target="_blank">→ Discourse Post</a>
         </div>
-        <p style="color:#667788; font-size:11px; margin-top:8px;">
+        <p class="lic-note">
           Ocean3.js © Phil Crowther · Licensed under CC BY-NC-SA 3.0
         </p>
       </div>
 
-      <div style="margin-bottom:20px;">
-        <h3 style="color:#ffaa44; font-size:16px; margin-bottom:8px;">🦅 VogelSimulator</h3>
-        <p style="color:#bbccdd; font-size:13px; line-height:1.6;">
+      <div class="section">
+        <h3>🦅 VogelSimulator</h3>
+        <p>
           Built with Three.js + MediaPipe. Source code on
-          <a href="https://github.com/pmmathias/VogelSimulator" target="_blank"
-            style="color:#60c0ff;">GitHub</a>.
+          <a href="https://github.com/pmmathias/VogelSimulator" target="_blank">GitHub</a>.
         </p>
       </div>
 
-      <div>
-        <h3 style="color:#ffaa44; font-size:16px; margin-bottom:8px;">📦 Assets</h3>
-        <p style="color:#bbccdd; font-size:12px; line-height:1.5;">
-          Terrain &amp; building textures: <a href="https://polyhaven.com" target="_blank" style="color:#60c0ff;">Poly Haven</a> (CC0)<br>
+      <div class="section">
+        <h3>📦 Assets</h3>
+        <p style="font-size:12px; line-height:1.5;">
+          Terrain &amp; building textures: <a href="https://polyhaven.com" target="_blank">Poly Haven</a> (CC0)<br>
           Stork 3D model: Community asset<br>
-          Blog: <a href="https://ki-mathias.de/" target="_blank" style="color:#60c0ff;">ki-mathias.de</a>
+          Blog: <a href="https://ki-mathias.de/" target="_blank">ki-mathias.de</a>
         </p>
       </div>
     </div>
   </div>
+
   <script>
-    const creditsBtn = document.getElementById('credits-btn');
-    const creditsOv = document.getElementById('credits-overlay');
-    const creditsClose = document.getElementById('credits-close');
-    creditsBtn.addEventListener('click', () => { creditsOv.style.display = 'flex'; });
-    creditsClose.addEventListener('click', () => { creditsOv.style.display = 'none'; });
-    creditsOv.addEventListener('click', (e) => {
-      if (e.target === creditsOv) creditsOv.style.display = 'none';
-    });
+    // Credits overlay
+    const ov = document.getElementById('credits-overlay');
+    document.getElementById('credits-btn').addEventListener('click', () => ov.classList.add('open'));
+    document.getElementById('credits-close').addEventListener('click', () => ov.classList.remove('open'));
+    ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('open'); });
+
+    // Water mode indicator — updated by WaterPlane.js via window.__waterPath
+    function refreshWaterMode() {
+      const label = document.getElementById('water-mode-label');
+      const dot = document.querySelector('#water-mode .dot');
+      const path = window.__waterPath;
+      if (!label || !dot) return;
+      if (path === 'iFFT') {
+        label.textContent = 'iFFT';
+        dot.classList.remove('fallback');
+        document.getElementById('water-mode').title = 'Waves: FFT-based (Ocean3)';
+      } else if (path === 'Gerstner') {
+        label.textContent = 'Gerstner';
+        dot.classList.add('fallback');
+        document.getElementById('water-mode').title = 'Waves: Gerstner fallback (iFFT unavailable on this device)';
+      } else {
+        label.textContent = '…';
+      }
+    }
+    // Poll until water is initialized (usually <2s)
+    const waterPoll = setInterval(() => {
+      if (window.__waterPath) { refreshWaterMode(); clearInterval(waterPoll); }
+    }, 100);
+    setTimeout(() => clearInterval(waterPoll), 10000);
   </script>
-  <button id="lang-toggle" style="
-    position:fixed; top:12px; right:12px; z-index:900;
-    color:rgba(255,255,255,0.7); font:bold 12px sans-serif;
-    background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.2);
-    padding:5px 10px; border-radius:8px; cursor:pointer;
-    transition:background 0.2s;
-  " onmouseover="this.style.background='rgba(0,0,0,0.5)'"
-     onmouseout="this.style.background='rgba(0,0,0,0.3)'"
-  >EN</button>
+
   <script type="module">
     import { lang, toggleLang, onLangChange } from '/src/i18n.js';
     const btn = document.getElementById('lang-toggle');
@@ -117,6 +199,7 @@
     });
     onLangChange(() => { btn.textContent = lang() === 'de' ? 'EN' : 'DE'; });
   </script>
+
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
