@@ -63,6 +63,26 @@ for (let sx = -200; sx <= 200; sx += 50) {
 flightState.position.y = maxH + 80;
 flightState.altitude = flightState.position.y;
 console.log(`Spawn height: ${flightState.position.y.toFixed(0)}m (terrain max nearby: ${maxH.toFixed(0)}m)`);
+
+// --- URL parameters for testing/debugging ---
+// ?x=100&z=200&y=20&yaw=1.5 → positions bird
+// ?skipcalib=1 → auto-applies default mobile calibration (bypass wizard)
+const urlParams = new URLSearchParams(location.search);
+if (urlParams.has('x')) flightState.position.x = parseFloat(urlParams.get('x'));
+if (urlParams.has('y')) flightState.position.y = parseFloat(urlParams.get('y'));
+if (urlParams.has('z')) flightState.position.z = parseFloat(urlParams.get('z'));
+if (urlParams.has('yaw')) flightState.yaw = parseFloat(urlParams.get('yaw'));
+if (urlParams.has('pitch')) flightState.pitch = parseFloat(urlParams.get('pitch'));
+if (urlParams.has('speed')) {
+  const s = parseFloat(urlParams.get('speed'));
+  flightState.velocity.set(
+    -Math.sin(flightState.yaw) * s,
+    0,
+    -Math.cos(flightState.yaw) * s,
+  );
+}
+if (urlParams.has('mode')) flightState.mode = parseInt(urlParams.get('mode'));
+flightState.altitude = flightState.position.y;
 const flightPhysics = new FlightPhysics(flightState);
 const cameraRig = new CameraRig(camera, flightState);
 const birdModel = new BirdModel(scene);

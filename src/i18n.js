@@ -19,6 +19,7 @@ const strings = {
     'start.fsOnce': 'Das muss nur einmal gemacht werden.',
     'start.fsOk': 'Verstanden!',
     'start.fsBtn': 'Fullscreen Setup (empfohlen)',
+    'start.fsStepLabel': 'Schritt',
     // Calibration
     'calib.profileFound': 'Kalibrierung vorhanden',
     'calib.profileQuestion': 'Letzte Kalibrierung verwenden\noder neu kalibrieren?',
@@ -76,6 +77,7 @@ const strings = {
     'start.fsOnce': 'You only need to do this once.',
     'start.fsOk': 'Got it!',
     'start.fsBtn': 'Fullscreen Setup (recommended)',
+    'start.fsStepLabel': 'Step',
     'calib.profileFound': 'Calibration found',
     'calib.profileQuestion': 'Use previous calibration\nor recalibrate?',
     'calib.useProfile': 'Play now',

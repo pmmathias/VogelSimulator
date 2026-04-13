@@ -16,9 +16,12 @@ import { WORLD_SIZE, WATER_LEVEL } from '../constants.js';
  * @param {THREE.WebGLRenderer} renderer
  */
 export function createWaterPlane(sun, renderer) {
+  const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || navigator.maxTouchPoints > 1;
+
   const WAVE_TILE = 2400;
   const wav_ = {
-    Res: 512,
+    Res: IS_MOBILE ? 256 : 512, // mobile: half FFT resolution for perf
     Siz: WAVE_TILE,
     WSp: 18,
     WHd: 295,
@@ -26,9 +29,10 @@ export function createWaterPlane(sun, renderer) {
   };
   const ocean = new Ocean(renderer, wav_);
 
-  const PLANE_SIZE = WORLD_SIZE * 4;               // 24000m
-  const TILE_COUNT = PLANE_SIZE / WAVE_TILE;       // 10× tiling
-  const SEGMENTS = 256;
+  const PLANE_SIZE = WORLD_SIZE * 4;                    // 24000m
+  const TILE_COUNT = PLANE_SIZE / WAVE_TILE;            // 10× tiling
+  const SEGMENTS = IS_MOBILE ? 128 : 256;               // mobile: less dense geometry
+  const REFLECTION_SIZE = IS_MOBILE ? 256 : 512;        // mobile: smaller mirror texture
 
   // Subdivided geometry for vertex displacement (65K verts)
   const geometry = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, SEGMENTS, SEGMENTS);
@@ -46,13 +50,13 @@ export function createWaterPlane(sun, renderer) {
   // Three.js Water class — gives us sun reflection + mirror reflection
   // Using Phil's FFT normal map instead of the default one
   const water = new Water(geometry, {
-    textureWidth: 512,
-    textureHeight: 512,
+    textureWidth: REFLECTION_SIZE,
+    textureHeight: REFLECTION_SIZE,
     waterNormals: normalMap,
     sunDirection: new THREE.Vector3().copy(sun.position).normalize(),
     sunColor: 0xffeedd,
     waterColor: 0x003050,
-    distortionScale: 2.5,
+    distortionScale: IS_MOBILE ? 1.5 : 2.5, // less mirror distortion on mobile so reflection stays aligned
     fog: false,
   });
 

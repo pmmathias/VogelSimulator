@@ -1,6 +1,6 @@
 import { requestFullscreenLandscape } from '../core/MobileInput.js';
 import { CalibrationWizard } from './CalibrationWizard.js';
-import { t } from '../i18n.js';
+import { t, onLangChange } from '../i18n.js';
 
 /**
  * Mobile UI: start screen with PWA fullscreen guide, controls overlay, orientation warning.
@@ -14,6 +14,71 @@ export class MobileUI {
     this._createFullscreenGuide();
     this._createControlsOverlay();
     this._createOrientationWarning();
+
+    // Re-render all text UI on language change
+    onLangChange(() => this._refreshTexts());
+  }
+
+  /** Re-render all translatable UI elements. */
+  _refreshTexts() {
+    // Start screen
+    if (this._startScreen) {
+      const sub = this._startScreen.querySelector('#mobile-start-subtitle');
+      if (sub) sub.innerHTML = t('start.subtitle').replace('\n', '<br>');
+      const hint = this._startScreen.querySelector('#mobile-start-hint');
+      if (hint) hint.textContent = t('start.hint');
+      const land = this._startScreen.querySelector('#mobile-start-landscape');
+      if (land) land.textContent = t('start.landscape');
+      const fsBtn = this._startScreen.querySelector('#mobile-fs-guide-btn');
+      if (fsBtn) fsBtn.innerHTML = `📱 ${t('start.fsBtn')}`;
+    }
+    // Controls overlay
+    if (this._controlsOverlay) {
+      const hint = this._controlsOverlay.querySelector('#mobile-controls-hint');
+      if (hint) hint.innerHTML = `${t('controls.tilt')} &nbsp;|&nbsp; ${t('controls.shake')} &nbsp;|&nbsp; ${t('controls.doubletap')}`;
+      const btn = this._controlsOverlay.querySelector('#mobile-recalib-btn');
+      if (btn) btn.innerHTML = `🔄 ${t('controls.recalib')}`;
+    }
+    // Orientation warning
+    if (this._orientWarn) {
+      const msg = this._orientWarn.querySelector('#orient-msg');
+      if (msg) msg.innerHTML = t('orient.msg');
+    }
+    // Fullscreen guide — regenerate
+    if (this._fsGuide) this._rebuildFullscreenGuide();
+  }
+
+  _rebuildFullscreenGuide() {
+    const step = t('start.fsStepLabel');
+    const row = (icon, num, text) => `
+      <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
+        <span style="font-size:28px; width:40px; text-align:center;">${icon}</span>
+        <div>
+          <div style="font-weight:bold; font-size:14px;">${step} ${num}</div>
+          <div style="color:#88aacc; font-size:12px;">${t('start.fsStep' + num)}</div>
+        </div>
+      </div>`;
+    this._fsGuide.innerHTML = `
+      <h2 style="font-size:20px; font-weight:bold; margin-bottom:20px; color:#60c0ff;">
+        📱 ${t('start.fsTitle')}
+      </h2>
+      <p style="color:#88aacc; font-size:13px; margin-bottom:20px; max-width:320px;">
+        ${t('start.fsDesc')}
+      </p>
+      <div style="text-align:left; max-width:320px; width:100%;">
+        ${row('📤', 1)}${row('➕', 2)}${row('🏠', 3)}${row('🚀', 4)}
+      </div>
+      <p style="color:#556677; font-size:11px; margin-top:16px;">
+        ${t('start.fsOnce')}
+      </p>
+      <button id="mobile-fs-guide-close" style="
+        background:linear-gradient(135deg, #2080cc, #40a0ff);
+        color:white; border:none; padding:12px 32px; border-radius:10px;
+        font-size:15px; font-weight:bold; cursor:pointer; margin-top:20px;
+      ">
+        ${t('start.fsOk')}
+      </button>
+    `;
   }
 
   _createStartScreen() {
@@ -32,7 +97,7 @@ export class MobileUI {
         -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
         VogelSimulator
       </h1>
-      <p style="color:#88aacc; margin-bottom:24px; font-size:14px; max-width:300px; line-height:1.5;">
+      <p id="mobile-start-subtitle" style="color:#88aacc; margin-bottom:24px; font-size:14px; max-width:300px; line-height:1.5;">
         ${t('start.subtitle').replace('\n', '<br>')}
       </p>
       <button id="mobile-start-btn" style="
@@ -44,7 +109,7 @@ export class MobileUI {
       ">
         ▶ PLAY
       </button>
-      <p style="color:#88aacc; font-size:12px; margin-bottom:8px;">
+      <p id="mobile-start-hint" style="color:#88aacc; font-size:12px; margin-bottom:8px;">
         ${t('start.hint')}
       </p>
       <button id="mobile-fs-guide-btn" style="
@@ -54,13 +119,16 @@ export class MobileUI {
       ">
         📱 ${t('start.fsBtn')}
       </button>
-      <p style="color:#445566; margin-top:16px; font-size:10px;">
+      <p id="mobile-start-landscape" style="color:#445566; margin-top:16px; font-size:10px;">
         ${t('start.landscape')}
       </p>
     `;
     document.body.appendChild(this._startScreen);
 
     // PLAY button
+    // Auto-skip calibration via ?skipcalib=1 URL param (for testing)
+    const skipCalib = new URLSearchParams(location.search).has('skipcalib');
+
     document.getElementById('mobile-start-btn').addEventListener('click', async () => {
       requestFullscreenLandscape();
       const permOk = await this._mobileInput.requestPermission();
@@ -72,15 +140,20 @@ export class MobileUI {
       this._startScreen.style.display = 'none';
 
       try {
-        // Check for saved calibration profile
         const saved = CalibrationWizard.loadProfile();
         let profile;
 
-        if (saved) {
-          // Offer choice: use saved or recalibrate
+        if (skipCalib) {
+          // Test mode: use default profile
+          profile = saved || {
+            restBeta: 0, restGamma: 0,
+            rollAxis: 'beta', rollSign: 1, rollRange: 30,
+            pitchAxis: 'gamma', pitchSign: 1, pitchRange: 30,
+            shakeThreshold: 12, timestamp: Date.now(),
+          };
+        } else if (saved) {
           profile = await this._showProfileChoice(saved);
         } else {
-          // First time: always run wizard
           const wizard = new CalibrationWizard();
           profile = await wizard.run();
         }
@@ -163,54 +236,7 @@ export class MobileUI {
       display:none; flex-direction:column; align-items:center; justify-content:center;
       color:white; font-family:sans-serif; text-align:center; padding:24px;
     `;
-    this._fsGuide.innerHTML = `
-      <h2 style="font-size:20px; font-weight:bold; margin-bottom:20px; color:#60c0ff;">
-        📱 ${t('start.fsTitle')}
-      </h2>
-      <p style="color:#88aacc; font-size:13px; margin-bottom:20px; max-width:320px;">
-        ${t('start.fsDesc')}
-      </p>
-      <div style="text-align:left; max-width:320px; width:100%;">
-        <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
-          <span style="font-size:28px; width:40px; text-align:center;">📤</span>
-          <div>
-            <div style="font-weight:bold; font-size:14px;">Schritt 1</div>
-            <div style="color:#88aacc; font-size:12px;">${t('start.fsStep1')}</div>
-          </div>
-        </div>
-        <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
-          <span style="font-size:28px; width:40px; text-align:center;">➕</span>
-          <div>
-            <div style="font-weight:bold; font-size:14px;">Schritt 2</div>
-            <div style="color:#88aacc; font-size:12px;">${t('start.fsStep2')}</div>
-          </div>
-        </div>
-        <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
-          <span style="font-size:28px; width:40px; text-align:center;">🏠</span>
-          <div>
-            <div style="font-weight:bold; font-size:14px;">Schritt 3</div>
-            <div style="color:#88aacc; font-size:12px;">${t('start.fsStep3')}</div>
-          </div>
-        </div>
-        <div style="display:flex; align-items:center; gap:12px; padding:12px 0;">
-          <span style="font-size:28px; width:40px; text-align:center;">🚀</span>
-          <div>
-            <div style="font-weight:bold; font-size:14px;">Schritt 4</div>
-            <div style="color:#88aacc; font-size:12px;">${t('start.fsStep4')}</div>
-          </div>
-        </div>
-      </div>
-      <p style="color:#556677; font-size:11px; margin-top:16px;">
-        ${t('start.fsOnce')}
-      </p>
-      <button id="mobile-fs-guide-close" style="
-        background:linear-gradient(135deg, #2080cc, #40a0ff);
-        color:white; border:none; padding:12px 32px; border-radius:10px;
-        font-size:15px; font-weight:bold; cursor:pointer; margin-top:20px;
-      ">
-        ${t('start.fsOk')}
-      </button>
-    `;
+    this._rebuildFullscreenGuide();
     document.body.appendChild(this._fsGuide);
 
     // Use event delegation since element isn't in DOM yet when button created via innerHTML
@@ -229,7 +255,7 @@ export class MobileUI {
       z-index:300; font-family:sans-serif;
     `;
     this._controlsOverlay.innerHTML = `
-      <span style="color:rgba(255,255,255,0.35); font-size:10px; pointer-events:none;">
+      <span id="mobile-controls-hint" style="color:rgba(255,255,255,0.35); font-size:10px; pointer-events:none;">
         ${t('controls.tilt')} &nbsp;|&nbsp; ${t('controls.shake')} &nbsp;|&nbsp; ${t('controls.doubletap')}
       </span>
       <button id="mobile-recalib-btn" style="
@@ -261,7 +287,7 @@ export class MobileUI {
     `;
     this._orientWarn.innerHTML = `
       <div style="font-size:50px; margin-bottom:15px;">📱↔️</div>
-      <p style="font-size:18px;">${t('orient.msg')}</p>
+      <p id="orient-msg" style="font-size:18px;">${t('orient.msg')}</p>
     `;
     document.body.appendChild(this._orientWarn);
 
