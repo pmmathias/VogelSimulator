@@ -201,5 +201,18 @@
   </script>
 
   <script type="module" src="/src/main.js"></script>
+
+  <!-- GoatCounter analytics (privacy-friendly, no cookies). count.js self-hosted
+       under the base path; only the ping goes to goatcounter.com. Injected
+       dynamically so Vite does not treat it as a bundled asset. -->
+  <script>
+    (function () {
+      var gc = document.createElement('script');
+      gc.async = true;
+      gc.src = '/VogelSimulator/count.js';
+      gc.setAttribute('data-goatcounter', 'https://kimathias.goatcounter.com/count');
+      document.body.appendChild(gc);
+    })();
+  </script>
 </body>
 </html>
